@@ -1,0 +1,48 @@
+---
+import Terminal from "../atoms/terminal.astro";
+
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<Terminal
+  data-terminal
+  class:list={["opacity-0 transition-opacity duration-700", className]}
+>
+  <slot />
+</Terminal>
+
+<script>
+  import { onFinishedLoad } from "@/lib/load-handler/progress";
+
+  // delay between each terminal line appearing
+  const LINE_STAGGER_MS = 350;
+
+  // Reveal a terminal's lines one after another.
+  const revealLines = (terminal: HTMLElement) => {
+    const lines = terminal.querySelectorAll<HTMLElement>(".terminal-line");
+    lines.forEach((line, i) => {
+      window.setTimeout(
+        () => line.classList.remove("opacity-0"),
+        i * LINE_STAGGER_MS,
+      );
+    });
+  };
+
+  // Once everything is loaded, fade each terminal in, then run its line
+  // sequence once that terminal has finished fading in. Scoping by the
+  // `data-terminal` attribute keeps multiple terminals from colliding.
+  onFinishedLoad(() => {
+    const terminals = document.querySelectorAll<HTMLElement>("[data-terminal]");
+
+    terminals.forEach((terminal) => {
+      terminal.classList.remove("opacity-0");
+      terminal.addEventListener("transitionend", () => revealLines(terminal), {
+        once: true,
+      });
+    });
+  });
+</script>

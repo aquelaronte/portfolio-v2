@@ -1,0 +1,83 @@
+---
+import avatar from "@/assets/avatar.jpeg";
+---
+
+<div
+  id="load-screen"
+  class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 bg-black transition-opacity duration-700"
+>
+  <div
+    id="load-content"
+    class="flex flex-col items-center gap-10 opacity-0 transition-opacity duration-500"
+  >
+    <img
+      id="load-avatar"
+      src={avatar.src}
+      alt="avatar"
+      class="h-24 w-24 rounded-full object-cover"
+    />
+
+    <div class="h-1.5 w-56 overflow-hidden rounded-full bg-white/20">
+      <div
+        id="load-bar"
+        class="h-full w-0 rounded-full bg-white transition-[width] duration-300 ease-out"
+      >
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { onResourceLoaded } from "@/lib/load-handler/progress";
+  import { LOAD_EVENT } from "@/lib/load-handler/constants";
+
+  const w = window as unknown as { __progress__: number };
+
+  const screen = document.getElementById("load-screen")!;
+  const content = document.getElementById("load-content")!;
+  const avatar = document.getElementById("load-avatar") as HTMLImageElement;
+  const bar = document.getElementById("load-bar")!;
+
+  // Reveal the avatar + progress bar once the avatar image is ready.
+  const reveal = () => content.classList.remove("opacity-0");
+
+  if (avatar.complete) {
+    reveal();
+  } else {
+    avatar.addEventListener("load", reveal, { once: true });
+    avatar.addEventListener("error", reveal, { once: true });
+  }
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+
+    document.removeEventListener(LOAD_EVENT, onProgress);
+
+    // Let the bar reach 100%, then fade out and remove from the layout.
+    window.setTimeout(() => {
+      screen.classList.add("opacity-0");
+      screen.addEventListener("transitionend", () => screen.remove(), {
+        once: true,
+      });
+    }, 350);
+  };
+
+  // Drive the bar from real resource-load progress.
+  const onProgress = (event: Event) => {
+    bar.style.width = `${w.__progress__}%`;
+    if ((event as CustomEvent<{ complete: boolean }>).detail.complete) finish();
+  };
+
+  document.addEventListener(LOAD_EVENT, onProgress);
+
+  // The document itself is one of the tracked resources.
+  const onDocumentLoaded = () => onResourceLoaded("document");
+
+  if (document.readyState === "complete") {
+    onDocumentLoaded();
+  } else {
+    window.addEventListener("load", onDocumentLoaded, { once: true });
+  }
+</script>

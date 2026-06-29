@@ -1,0 +1,37 @@
+---
+import wallpaper from "@/assets/wallpaper.jpg";
+---
+
+<img
+  id="wallpaper"
+  data-src={wallpaper.src}
+  alt="wallpaper"
+  class="fixed -z-10 h-screen w-screen object-cover opacity-0 transition-opacity duration-1000"
+/>
+
+<script>
+  import { onResourceLoaded } from "@/lib/load-handler/progress";
+
+  const img = document.getElementById("wallpaper") as HTMLImageElement;
+
+  img.addEventListener(
+    "load",
+    () => {
+      img.classList.remove("opacity-0");
+      onResourceLoaded("wallpaper");
+    },
+    { once: true },
+  );
+
+  // Only load the wallpaper once the document has finished loading, so the
+  // heavy image doesn't delay the `load` event the load screen waits on.
+  const load = () => {
+    img.src = img.dataset.src!;
+  };
+
+  if (document.readyState === "complete") {
+    load();
+  } else {
+    window.addEventListener("load", load, { once: true });
+  }
+</script>

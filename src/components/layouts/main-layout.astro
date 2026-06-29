@@ -1,17 +1,27 @@
 ---
+import "@/styles/global.css";
+import { Font } from "astro:assets";
+
 interface Props {
-  lang?: string;
+  title: string;
 }
 
-const { lang = "es" } = Astro.props;
+const { title } = Astro.props;
 ---
 
-<html lang={lang}>
+<html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
-    <title>Document</title>
+
+    <Font cssVariable="--font-geist" preload />
+    <Font cssVariable="--font-geist-mono" preload />
+    <Font cssVariable="--font-jacquard" preload />
+
+    <title>{title}</title>
   </head>
-  <body> </body>
+  <body>
+    <slot />
+  </body>
 </html>

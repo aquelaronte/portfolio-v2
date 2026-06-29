@@ -1,0 +1,115 @@
+---
+import { Icon } from "astro-icon/components";
+import avatar from "@/assets/avatar.jpeg";
+---
+
+<div
+  class="fixed top-0 z-40 flex h-10 w-full flex-row items-center justify-between bg-transparent px-5 pt-5 text-sm text-white select-none"
+>
+  <div class="flex flex-row items-center gap-2">
+    <img src={avatar.src} class="mr-3 size-6 rounded-full" />
+
+    <div class="relative" data-menu>
+      <button
+        data-menu-trigger
+        class="rounded px-2 py-0.5 font-bold hover:bg-white/15"
+      >
+        Terminal
+      </button>
+      <div
+        data-menu-panel
+        class="absolute top-full left-0 mt-1.5 hidden min-w-44 rounded-lg border border-white/15 bg-neutral-800/90 p-1 text-white shadow-xl backdrop-blur-md"
+      >
+        <button class="w-full rounded px-3 py-1 text-left hover:bg-white/15"
+          >About Me</button
+        >
+        <button class="w-full rounded px-3 py-1 text-left hover:bg-white/15"
+          >Resume</button
+        >
+        <div class="my-1 h-px bg-white/10"></div>
+        <button class="w-full rounded px-3 py-1 text-left hover:bg-white/15"
+          >Quit</button
+        >
+      </div>
+    </div>
+
+    <div class="relative" data-menu>
+      <button data-menu-trigger class="rounded px-2 py-0.5 hover:bg-white/15">
+        View
+      </button>
+      <div
+        data-menu-panel
+        class="absolute top-full left-0 mt-1.5 hidden min-w-44 rounded-lg border border-white/15 bg-neutral-800/90 p-1 text-white shadow-xl backdrop-blur-md"
+      >
+        <button class="w-full rounded px-3 py-1 text-left hover:bg-white/15"
+          >Projects</button
+        >
+        <button class="w-full rounded px-3 py-1 text-left hover:bg-white/15"
+          >Skills</button
+        >
+        <button class="w-full rounded px-3 py-1 text-left hover:bg-white/15"
+          >Contact</button
+        >
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-row items-center gap-3">
+    <Icon name="lucide:wifi" class="size-4" />
+    <Icon name="lucide:battery-full" class="size-4" />
+    <span id="top-bar-date"></span>
+  </div>
+</div>
+
+<script>
+  const dateEl = document.getElementById("top-bar-date")!;
+
+  // Format: DDD DD MMM H:MM AM/PM  (e.g. "Sun 29 Jun 1:30 PM")
+  const formatDate = (date: Date) => {
+    const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date.toLocaleDateString("en-US", { month: "short" });
+    const time = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    return `${weekday} ${day} ${month} ${time}`;
+  };
+
+  const update = () => {
+    dateEl.textContent = formatDate(new Date());
+  };
+
+  update();
+  window.setInterval(update, 1000 * 30);
+
+  // --- Top bar dropdown menus ---
+  const menus = document.querySelectorAll<HTMLElement>("[data-menu]");
+
+  const closeAll = () => {
+    menus.forEach((menu) =>
+      menu.querySelector("[data-menu-panel]")?.classList.add("hidden"),
+    );
+  };
+
+  menus.forEach((menu) => {
+    const trigger = menu.querySelector("[data-menu-trigger]")!;
+    const panel = menu.querySelector("[data-menu-panel]")!;
+
+    trigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const isOpen = !panel.classList.contains("hidden");
+      closeAll();
+      // if it was already open, the closeAll above leaves it closed
+      panel.classList.toggle("hidden", isOpen);
+    });
+  });
+
+  // Close on outside click or Escape.
+  document.addEventListener("click", () => closeAll());
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeAll();
+  });
+</script>

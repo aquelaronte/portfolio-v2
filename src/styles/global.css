@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-geist-mono);
+  --font-mono-heading: var(--font-jacquard);
+
+  --color-primary: #f6a1c6;
+  --color-background: #030708;
+  --color-foreground: #fff;
+}
+
+html {
+  font-family: var(--font-sans);
+
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  /* font-size: 14px; */
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-mono-heading);
+}

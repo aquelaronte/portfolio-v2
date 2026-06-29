@@ -1,0 +1,21 @@
+---
+import TopBar from "./top-bar.astro";
+import WelcomeTerminal from "./welcome-terminal.tsx";
+---
+
+<TopBar />
+<main
+  id="main-content"
+  class="relative flex h-screen w-screen items-center justify-center p-5 pt-15 opacity-0 transition-opacity duration-700"
+>
+  <WelcomeTerminal client:load />
+</main>
+
+<script>
+  import { onFinishedLoad } from "@/lib/load-handler/progress";
+
+  const main = document.getElementById("main-content")!;
+
+  // Fade the main content in once every tracked resource has loaded.
+  onFinishedLoad(() => main.classList.remove("opacity-0"));
+</script>
