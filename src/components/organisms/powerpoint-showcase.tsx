@@ -48,27 +48,52 @@ const slides: ReactNode[] = [
       </p>
 
       <p className="mt-8 text-white/90">
-      Byte4Bit es una startup que desarrolla soluciones tecnológicas para clientes terceros.
+        Byte4Bit es una startup que desarrolla soluciones tecnológicas para
+        clientes terceros.
       </p>
       <p className="mt-4 text-white/90">
-      Durante mi labor en esta empresa, lideré varios proyectos. Entre ellos los más destacados son:
+        Durante mi labor en esta empresa, lideré varios proyectos. Entre ellos
+        los más destacados son:
       </p>
       <ul className="mt-3 list-disc text-white/90 marker:text-fuchsia-400 [&_li]:ml-6">
-        <li>ToLinkme: Aumenté la eficiencia y mejoré el tiempo de respuesta en el backend a través del rediseño de la base datos y lógica de servidor. Adicionalmente diseñé un pipeline CI/CD para la infraestructura, frontend y backend, con terraform y github actions <a href="https://tolinkme.com/" className="text-fuchsia-400 underline font-bold" target="_blank">Visitar</a></li>
-        <li className="mt-3">Audit1: Orquesté 4 portales frontend a través de una arquitectura monorepo y el manejo de una librería compartida. <a href="https://audit1.com" className="text-fuchsia-400 underline font-bold" target="_blank">Visitar</a></li>
+        <li>
+          ToLinkme: Aumenté la eficiencia y mejoré el tiempo de respuesta en el
+          backend a través del rediseño de la base datos y lógica de servidor.
+          Adicionalmente diseñé un pipeline CI/CD para la infraestructura,
+          frontend y backend, con terraform y github actions{" "}
+          <a
+            href="https://tolinkme.com/"
+            className="font-bold text-fuchsia-400 underline"
+            target="_blank"
+          >
+            Visitar
+          </a>
+        </li>
+        <li className="mt-3">
+          Audit1: Orquesté 4 portales frontend a través de una arquitectura
+          monorepo y el manejo de una librería compartida.{" "}
+          <a
+            href="https://audit1.com"
+            className="font-bold text-fuchsia-400 underline"
+            target="_blank"
+          >
+            Visitar
+          </a>
+        </li>
       </ul>
     </div>
   </Slide>,
   <Slide className="flex items-center justify-center">
     <p>Gracias por ver :)</p>
-
-  </Slide>
+  </Slide>,
 ];
 
 export default function PowerpointShowcase({
   className,
+  onOpenNavigator,
 }: {
   className?: string;
+  onOpenNavigator?: () => void;
 }) {
   const total = slides.length;
   const [current, setCurrent] = useState(0);
@@ -107,6 +132,30 @@ export default function PowerpointShowcase({
           </span>
           <span className="text-sm font-semibold">Mi experiencia</span>
         </div>
+
+        <button
+          type="button"
+          onClick={onOpenNavigator}
+          className="ml-auto flex items-center gap-1.5 rounded-md bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600 ring-1 ring-neutral-300 hover:bg-neutral-200"
+          aria-label="Abrir navegador"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+            <path d="M2 12h20"></path>
+          </svg>
+          Abrir navegador
+        </button>
       </div>
 
       {/* body: thumbnail rail + slide stage */}

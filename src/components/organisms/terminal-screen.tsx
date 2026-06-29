@@ -1,6 +1,7 @@
 import { cn } from "@/lib/helpers/cn";
 import { onFinishedLoad } from "@/lib/load-handler/progress";
 import { useEffect, useState } from "react";
+import Navigator from "./navigator";
 import PowerpointShowcase from "./powerpoint-showcase";
 import Terminal, { type TerminalLine } from "./terminal";
 
@@ -9,7 +10,7 @@ const FADE_MS = 500;
 // how long the initial main-content fade takes before the welcome lines start
 const INITIAL_REVEAL_DELAY_MS = 700;
 
-type Phase = "welcome" | "about" | "showcase";
+type Phase = "welcome" | "about" | "showcase" | "navigator";
 
 // the phase a keypress advances to from the current one
 const NEXT_PHASE: Partial<Record<Phase, Phase>> = {
@@ -44,20 +45,23 @@ export default function TerminalScreen({
     }
   }, []);
 
-  // A keypress fades the current view out and advances to the next phase.
+  // Fade the current view out and swap to the given phase.
+  const advance = (next: Phase) => {
+    setVisible(false);
+    window.setTimeout(() => {
+      setPhase(next);
+      setVisible(true);
+    }, FADE_MS);
+  };
+
+  // A keypress advances to the next phase (when there is one).
   useEffect(() => {
     if (!loaded) return;
 
     const next = NEXT_PHASE[phase];
     if (!next) return;
 
-    const handle = () => {
-      setVisible(false);
-      window.setTimeout(() => {
-        setPhase(next);
-        setVisible(true);
-      }, FADE_MS);
-    };
+    const handle = () => advance(next);
 
     window.addEventListener("keydown", handle, { once: true });
     return () => window.removeEventListener("keydown", handle);
@@ -90,7 +94,11 @@ export default function TerminalScreen({
         />
       )}
 
-      {phase === "showcase" && <PowerpointShowcase />}
+      {phase === "showcase" && (
+        <PowerpointShowcase onOpenNavigator={() => advance("navigator")} />
+      )}
+
+      {phase === "navigator" && <Navigator />}
     </div>
   );
 }
