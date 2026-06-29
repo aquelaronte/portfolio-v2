@@ -1,0 +1,10 @@
+# Generated
+.astro
+node_modules
+
+# Static assets
+public
+
+pnpm-workspace.yaml
+pnpm-lock.yaml
+package.json
