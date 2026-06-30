@@ -57,7 +57,9 @@ export default function Navigator({ className }: { className?: string }) {
       </div>
 
       {/* page content — blank for now */}
-      <div className="flex-1 bg-white"></div>
+      <div className="flex-1 bg-white">
+        
+      </div>
     </div>
   );
 }
