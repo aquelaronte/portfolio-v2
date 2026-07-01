@@ -1,4 +1,5 @@
 import { cn } from "@/lib/helpers/cn";
+import WindowDots from "@/components/atoms/window-dots";
 import { useEffect, useState, type ReactNode } from "react";
 
 // delay between each line appearing
@@ -17,6 +18,7 @@ export default function Terminal({
   title,
   active = false,
   startDelay = 0,
+  onClose,
 }: {
   className?: string;
   lines: TerminalLine[];
@@ -25,6 +27,8 @@ export default function Terminal({
   active?: boolean;
   // how long to wait before the first line appears
   startDelay?: number;
+  // when set, the red/yellow window buttons close the window
+  onClose?: () => void;
 }) {
   // how many lines are currently visible
   const [visibleLines, setVisibleLines] = useState(0);
@@ -50,16 +54,13 @@ export default function Terminal({
     <div
       className={cn(
         "flex flex-col gap-2 overflow-y-auto rounded-xl bg-black/70 px-6 pt-5 text-white outline outline-neutral-600 backdrop-blur-md",
+        "scrollbar-thin [scrollbar-color:#404040_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-track]:bg-transparent",
         className,
       )}
     >
       {title && (
         <div className="-mx-6 -mt-5 mb-3 flex items-center border-b border-neutral-600 px-4 py-2">
-          <div className="flex gap-1.5">
-            <span className="size-3 rounded-full bg-red-500"></span>
-            <span className="size-3 rounded-full bg-yellow-500"></span>
-            <span className="size-3 rounded-full bg-green-500"></span>
-          </div>
+          <WindowDots onClose={onClose} />
           <span className="flex-1 text-center text-xs font-bold text-neutral-300">
             {title}
           </span>

@@ -1,9 +1,21 @@
 import { cn } from "@/lib/helpers/cn";
 import dayventCover from "@/assets/projects/dayvent/cover.png";
 import iceWearCover from "@/assets/projects/ice-wear/cover.png";
-import { Lock, Newspaper } from "lucide-react";
+import WindowDots from "@/components/atoms/window-dots";
+import {
+  ArrowLeft,
+  ArrowUp,
+  Gamepad2,
+  Lock,
+  Mail,
+  Newspaper,
+  X,
+} from "lucide-react";
 import { SiGithub, SiYoutube } from "@icons-pack/react-simple-icons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+
+// where the contact form sends to
+const CONTACT_EMAIL = "me@arias.systems";
 
 type ProjectData = {
   slug: string;
@@ -172,7 +184,15 @@ function useInView<T extends HTMLElement>(
   return { ref, inView };
 }
 
-export default function Navigator({ className }: { className?: string }) {
+export default function Navigator({
+  className,
+  onClose,
+  onOpenTestimonials,
+}: {
+  className?: string;
+  onClose?: () => void;
+  onOpenTestimonials?: () => void;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // browser-like history of visited routes (null = project list)
   const [history, setHistory] = useState<(string | null)[]>([null]);
@@ -192,6 +212,9 @@ export default function Navigator({ className }: { className?: string }) {
   const back = () => canBack && setIndex((prev) => prev - 1);
   const forward = () => canForward && setIndex((prev) => prev + 1);
 
+  // gmail-style contact compose popup
+  const [composing, setComposing] = useState(false);
+
   // scroll back to top whenever the visible route changes
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -202,17 +225,13 @@ export default function Navigator({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col overflow-hidden rounded-xl bg-white text-neutral-800 shadow-2xl select-none",
+        "relative flex h-full w-full flex-col overflow-hidden rounded-xl bg-white text-neutral-800 shadow-2xl select-none",
         className,
       )}
     >
       {/* browser chrome */}
       <div className="flex items-center gap-3 border-b border-neutral-200 bg-neutral-100 px-4 py-2">
-        <div className="flex gap-1.5">
-          <span className="size-3 rounded-full bg-red-500"></span>
-          <span className="size-3 rounded-full bg-yellow-500"></span>
-          <span className="size-3 rounded-full bg-green-500"></span>
-        </div>
+        <WindowDots onClose={onClose} />
 
         {/* nav controls */}
         <div className="flex items-center gap-1 text-lg leading-none text-neutral-400">
@@ -241,7 +260,27 @@ export default function Navigator({ className }: { className?: string }) {
           <Lock size={13} />
           <span>{url}</span>
         </div>
+
+        {onOpenTestimonials && (
+          <button
+            type="button"
+            onClick={onOpenTestimonials}
+            className="flex items-center gap-1.5 rounded-md bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600 ring-1 ring-neutral-300 hover:bg-neutral-200"
+            aria-label="Abrir testimonials"
+          >
+            <Gamepad2 size={14} />
+            Testimonials
+          </button>
+        )}
       </div>
+
+      {/* points up toward the "Testimonials" button in the browser chrome */}
+      {onOpenTestimonials && (
+        <div className="pointer-events-none absolute top-16 right-6 z-10 flex animate-bounce flex-col items-center gap-1 text-neutral-500">
+          <ArrowUp className="size-6" />
+          <span className="text-sm font-medium">Prueba el juego</span>
+        </div>
+      )}
 
       {/* page content */}
       <div
@@ -249,7 +288,7 @@ export default function Navigator({ className }: { className?: string }) {
         className="flex flex-1 flex-col gap-10 overflow-y-auto bg-white px-20 py-10"
       >
         {active ? (
-          <ProjectDetail project={active} />
+          <ProjectDetail project={active} onBack={back} />
         ) : (
           projects.map((project) => (
             <Project
@@ -261,7 +300,89 @@ export default function Navigator({ className }: { className?: string }) {
           ))
         )}
       </div>
+
+      {/* contact (gmail-style) */}
+      {composing ? (
+        <ContactCompose onClose={() => setComposing(false)} />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setComposing(true)}
+          className="absolute right-6 bottom-6 z-10 flex items-center gap-2 rounded-full bg-[#0b57d0] px-5 py-3 text-sm font-medium text-white shadow-lg hover:bg-[#0a4bb8]"
+        >
+          <Mail size={18} />
+          Contáctame
+        </button>
+      )}
     </div>
+  );
+}
+
+function ContactCompose({ onClose }: { onClose: () => void }) {
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  const send = (event: React.FormEvent) => {
+    event.preventDefault();
+    const href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(body)}`;
+    window.open(href, "_blank");
+    onClose();
+  };
+
+  return (
+    <form
+      onSubmit={send}
+      className="absolute right-6 bottom-6 z-20 flex h-112 w-104 flex-col overflow-hidden rounded-t-lg bg-white text-sm text-neutral-800 shadow-2xl ring-1 ring-black/10"
+    >
+      {/* header */}
+      <div className="flex items-center justify-between bg-[#404040] px-4 py-2 text-white">
+        <span className="font-medium">Mensaje nuevo</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="grid size-6 place-items-center rounded hover:bg-white/15"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* to (fixed) */}
+      <div className="flex items-center gap-2 border-b border-neutral-200 px-4 py-2">
+        <span className="text-neutral-500">Para</span>
+        <span>{CONTACT_EMAIL}</span>
+      </div>
+
+      {/* subject */}
+      <input
+        value={subject}
+        onChange={(event) => setSubject(event.target.value)}
+        placeholder="Asunto"
+        required
+        className="border-b border-neutral-200 px-4 py-2 outline-none placeholder:text-neutral-400"
+      />
+
+      {/* body */}
+      <textarea
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        placeholder="Escribe tu mensaje..."
+        required
+        className="flex-1 resize-none px-4 py-3 outline-none placeholder:text-neutral-400"
+      />
+
+      {/* footer */}
+      <div className="flex items-center px-4 py-3">
+        <button
+          type="submit"
+          className="rounded-full bg-[#0b57d0] px-6 py-2 font-medium text-white hover:bg-[#0a4bb8]"
+        >
+          Enviar
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -351,13 +472,30 @@ function Project({
 type Block =
   { type: "p"; content: ReactNode } | { type: "img"; content: string };
 
-function ProjectDetail({ project }: { project: ProjectData }) {
+function ProjectDetail({
+  project,
+  onBack,
+}: {
+  project: ProjectData;
+  onBack?: () => void;
+}) {
   const { cover, title, blocks = [], repo, video, article } = project;
 
   return (
     <div className="flex flex-col gap-6 font-sans! text-lg text-neutral-700">
       <div className="relative -mx-20 -mt-10">
         <img src={cover} className="h-72 w-full object-cover object-center" />
+
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="absolute top-5 left-20 flex w-fit items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-neutral-900 shadow-sm ring-1 ring-black/10 backdrop-blur hover:bg-white"
+          >
+            <ArrowLeft size={16} />
+            Volver
+          </button>
+        )}
 
         {/* fade starting around the middle of the image down to the page */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-white via-white/80 to-transparent" />

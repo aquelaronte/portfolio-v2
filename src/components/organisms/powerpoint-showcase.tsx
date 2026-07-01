@@ -1,5 +1,7 @@
 import { cn } from "@/lib/helpers/cn";
 import Slide from "@/components/molecules/slide";
+import WindowDots from "@/components/atoms/window-dots";
+import { ArrowUpRight } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 const slides: ReactNode[] = [
@@ -85,15 +87,23 @@ const slides: ReactNode[] = [
   </Slide>,
   <Slide className="flex items-center justify-center">
     <p>Gracias por ver :)</p>
+
+    {/* points up toward the "Abrir navegador" button in the title bar */}
+    <div className="absolute top-4 right-6 flex animate-bounce items-center gap-2 text-white">
+      <span className="text-sm font-medium">Abre el navegador</span>
+      <ArrowUpRight className="size-6" />
+    </div>
   </Slide>,
 ];
 
 export default function PowerpointShowcase({
   className,
   onOpenNavigator,
+  onClose,
 }: {
   className?: string;
   onOpenNavigator?: () => void;
+  onClose?: () => void;
 }) {
   const total = slides.length;
   const [current, setCurrent] = useState(0);
@@ -121,11 +131,7 @@ export default function PowerpointShowcase({
     >
       {/* title bar */}
       <div className="flex items-center gap-3 border-b border-neutral-300 bg-white px-4 py-2">
-        <div className="flex gap-1.5">
-          <span className="size-3 rounded-full bg-red-500"></span>
-          <span className="size-3 rounded-full bg-yellow-500"></span>
-          <span className="size-3 rounded-full bg-green-500"></span>
-        </div>
+        <WindowDots onClose={onClose} />
         <div className="flex items-center gap-2">
           <span className="grid size-5 place-items-center rounded-sm bg-[#C43E1C] text-xs font-bold text-white">
             P
