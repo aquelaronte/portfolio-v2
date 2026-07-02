@@ -6,12 +6,16 @@ import icon from "astro-icon";
 
 import react from "@astrojs/react";
 
+import cloudflare from "@astrojs/cloudflare";
+
 // https://astro.build/config
 export default defineConfig({
   integrations: [icon(), react()],
+
   vite: {
     plugins: [tailwindcss()],
   },
+
   fonts: [
     {
       provider: fontProviders.google(),
@@ -31,4 +35,6 @@ export default defineConfig({
       cssVariable: "--font-jacquard",
     },
   ],
+
+  adapter: cloudflare(),
 });
