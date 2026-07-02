@@ -22,13 +22,18 @@ const { article, featured = false } = Astro.props;
   <Image
     src={article.data.cover.url}
     alt={article.data.cover.alt}
+    transition:name={`article-cover-${article.id}`}
     class="border-r-foreground/10 relative flex h-full min-h-85 items-center justify-center border-r"
   />
   <div class="flex flex-col justify-center px-9 py-9.5">
-    <div class="mb-4 flex flex-wrap gap-2">
+    <div
+      class="mb-4 flex flex-wrap gap-2"
+      transition:name={`article-tags-${article.id}`}
+    >
       {article.data.tags.map((tag, i) => <Badge>{tag}</Badge>)}
     </div>
     <h2
+      transition:name={`article-title-${article.id}`}
       class:list={[
         "text-foreground mb-3.5 font-mono! leading-[1.18] font-semibold tracking-tight",
         featured ? "text-2xl" : "text-lg",
@@ -37,6 +42,7 @@ const { article, featured = false } = Astro.props;
       {article.data.title}
     </h2>
     <p
+      transition:name={`article-description-${article.id}`}
       class:list={[
         "text-foreground/80 mb-5.5 leading-[1.65]",
         featured ? "text-sm" : "line-clamp-3 text-xs",
@@ -45,7 +51,10 @@ const { article, featured = false } = Astro.props;
       {article.data.description}
     </p>
 
-    <div class="text-foreground/70 mt-auto flex items-center gap-3.5 text-xs">
+    <div
+      class="text-foreground/70 mt-auto flex items-center gap-3.5 text-xs"
+      transition:name={`article-meta-${article.id}`}
+    >
       <!-- Date -->
       <span>{formatDate(article.data.date)}</span>
 

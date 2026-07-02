@@ -26,8 +26,13 @@ const {
     <meta name="generator" content={Astro.generator} />
 
     <script is:inline>
-      document.documentElement.dataset.mode =
-        localStorage.getItem("reading-mode") || "regular";
+      const applyReadingMode = () => {
+        document.documentElement.dataset.mode =
+          localStorage.getItem("reading-mode") || "regular";
+      };
+
+      applyReadingMode();
+      document.addEventListener("astro:after-swap", applyReadingMode);
     </script>
 
     <Font cssVariable="--font-geist" preload />
