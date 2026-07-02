@@ -1,0 +1,23 @@
+---
+interface Props {
+  tabLevel: number;
+  label: string;
+  href: string;
+}
+
+const { tabLevel, label, href } = Astro.props;
+---
+
+<a
+  href={href}
+  class="text-foreground/55 hover:text-foreground border-b-foreground/5 flex cursor-pointer border-b py-2 text-xs transition-colors"
+  style={{
+    marginLeft: `${0.8 * tabLevel}rem`,
+    lineHeight: "1.5",
+  }}
+>
+  <span class="text-primary mr-2">{label}</span>
+  <span>
+    <slot />
+  </span>
+</a>

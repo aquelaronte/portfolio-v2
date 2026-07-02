@@ -10,10 +10,16 @@ import TerminalCursor from "../atoms/terminal-cursor.astro";
   autoplay
   loop
   muted
-  playsinline></video>
-<div class="bg-background/80 fixed inset-0 -z-10 backdrop-blur-xl"></div>
+  playsinline
+  transition:persist></video>
+<div
+  class="bg-background/80 fixed inset-0 -z-10 backdrop-blur-xl"
+  transition:persist
+>
+</div>
 <header
   class="border-b-foreground/10 bg-background sticky top-0 z-20 flex items-center justify-between gap-4 border-b px-6.5 py-3.5 font-mono"
+  transition:persist
 >
   <div class="flex items-center gap-2.5 text-sm select-none">
     <span class="flex gap-1.5">

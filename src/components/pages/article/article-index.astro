@@ -1,0 +1,48 @@
+---
+import type { MarkdownHeading } from "astro";
+import ArticleIndexItem from "./article-index-item.astro";
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+
+// Only surface section headings (skip the page title h1 and very deep ones).
+const toc = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+const minDepth = toc.length ? Math.min(...toc.map((h) => h.depth)) : 2;
+
+const counters: number[] = [];
+const items = toc.map((heading) => {
+  const tabLevel = heading.depth - minDepth;
+  counters.length = tabLevel + 1;
+  counters[tabLevel] = (counters[tabLevel] ?? 0) + 1;
+
+  return {
+    slug: heading.slug,
+    text: heading.text,
+    tabLevel,
+    label: counters.slice(0, tabLevel + 1).join("."),
+  };
+});
+---
+
+<aside class="sticky top-25">
+  <div
+    class="border-foreground/10 bg-foreground/5 rounded-xl border px-4.5 py-4"
+  >
+    <div class="text-primary mb-3.5 text-xs tracking-widest">&gt; index</div>
+
+    {
+      items.map((item) => (
+        <ArticleIndexItem
+          href={`#${item.slug}`}
+          label={item.label}
+          tabLevel={item.tabLevel}
+        >
+          {item.text}
+        </ArticleIndexItem>
+      ))
+    }
+  </div>
+</aside>

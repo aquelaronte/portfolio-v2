@@ -8,6 +8,7 @@ interface Props {
   description?: string;
   class?: string;
   clientRouter?: boolean;
+  transitionName?: string;
 }
 
 const {
@@ -23,6 +24,11 @@ const {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
+
+    <script is:inline>
+      document.documentElement.dataset.mode =
+        localStorage.getItem("reading-mode") || "regular";
+    </script>
 
     <Font cssVariable="--font-geist" preload />
     <Font cssVariable="--font-geist-mono" preload />

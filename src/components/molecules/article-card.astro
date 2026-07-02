@@ -1,31 +1,32 @@
 ---
-import type { ArticleListItem } from "@/lib/infrastructure/articles/schema";
 import Badge from "../atoms/badge.astro";
 import { formatDate } from "@/lib/helpers/format-date";
+import type { Article } from "@/lib/infrastructure/articles/fetch";
 import { Image } from "astro:assets";
 
 interface Props {
-  article: ArticleListItem;
+  article: Article;
   featured?: boolean;
 }
 
 const { article, featured = false } = Astro.props;
 ---
 
-<article
+<a
+  href={`/blog/${article.id}`}
   class:list={[
-    "border-foreground/10 bg-foreground/5 hover:border-primary/40 hover:shadow-primary/30 mb-6.5 grid overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-[0_0_30px_-5px]",
+    "group border-foreground/10 bg-foreground/5 hover:border-primary/40 hover:shadow-primary/30 mb-6.5 grid cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-[0_0_30px_-5px]",
     featured ? "grid-cols-[1.05fr_1fr]" : "grid-cols-1",
   ]}
 >
   <Image
-    src={article.cover.url}
-    alt={article.cover.alt}
+    src={article.data.cover.url}
+    alt={article.data.cover.alt}
     class="border-r-foreground/10 relative flex h-full min-h-85 items-center justify-center border-r"
   />
   <div class="flex flex-col justify-center px-9 py-9.5">
-    <div class="mb-4 flex gap-2">
-      {article.tags.map((tag, i) => <Badge>{tag}</Badge>)}
+    <div class="mb-4 flex flex-wrap gap-2">
+      {article.data.tags.map((tag, i) => <Badge>{tag}</Badge>)}
     </div>
     <h2
       class:list={[
@@ -33,7 +34,7 @@ const { article, featured = false } = Astro.props;
         featured ? "text-2xl" : "text-lg",
       ]}
     >
-      {article.title}
+      {article.data.title}
     </h2>
     <p
       class:list={[
@@ -41,25 +42,23 @@ const { article, featured = false } = Astro.props;
         featured ? "text-sm" : "line-clamp-3 text-xs",
       ]}
     >
-      {article.description}
+      {article.data.description}
     </p>
 
     <div class="text-foreground/70 mt-auto flex items-center gap-3.5 text-xs">
       <!-- Date -->
-      <span>{formatDate(article.date)}</span>
+      <span>{formatDate(article.data.date)}</span>
 
       <span>.</span>
 
       <!-- Estimated reading time -->
-      <span>{article.estimatedReadingTime} min</span>
+      <span>{article.data.estimatedReadingTime} min</span>
 
       <span class="flex-1"></span>
 
-      <a
-        href={`/blog/${article.id}`}
-        class="text-primary flex cursor-pointer items-center gap-1 hover:underline"
-        >leer <span aria-hidden="true">&rarr;</span></a
+      <span class="text-primary flex items-center gap-1 group-hover:underline"
+        >leer <span aria-hidden="true">&rarr;</span></span
       >
     </div>
   </div>
-</article>
+</a>

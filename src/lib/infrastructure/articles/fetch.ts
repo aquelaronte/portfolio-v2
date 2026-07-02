@@ -1,19 +1,17 @@
-import type { Article, ArticleListItem } from "./schema";
-import { getCollection, getEntry } from "astro:content";
+import { getCollection } from "astro:content";
 
-export async function fetchAllArticles(limit = 10): Promise<ArticleListItem[]> {
-  const collection = await getCollection("blog");
+async function fetchArticlesCollection() {
+  return getCollection("blog");
+}
+
+export async function fetchAllArticles(limit = 10) {
+  const collection = await fetchArticlesCollection();
 
   return collection
     .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
-    .slice(0, limit)
-    .map((entry) => ({ ...entry.data, id: entry.id }));
+    .slice(0, limit);
 }
 
-export async function fetchArticleById(
-  id: string,
-): Promise<Article | undefined> {
-  const entry = await getEntry("blog", id);
-
-  return entry?.data;
-}
+export type Article = Awaited<
+  ReturnType<typeof fetchArticlesCollection>
+>[number];

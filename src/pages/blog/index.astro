@@ -1,5 +1,4 @@
 ---
-import BlogLayout from "@/components/layouts/blog-layout.astro";
 import MainLayout from "@/components/layouts/main-layout.astro";
 import BlogPage from "@/components/pages/blog/blog-page.astro";
 ---
@@ -7,9 +6,9 @@ import BlogPage from "@/components/pages/blog/blog-page.astro";
 <MainLayout
   title="Blog de Brahian | Artículos de Software Engineering | Backend, IA y Cloud"
   description="Explora mi blog donde detallo sobre arquitectura de software, backend e inteligencia artificial. Podrías encontrar la solución a tus próximos retos o aprender conmigo"
+  transition:name="root-layout"
+  transition:animate={"fade"}
   clientRouter
 >
-  <BlogLayout transition:persist>
-    <BlogPage />
-  </BlogLayout>
+  <BlogPage />
 </MainLayout>

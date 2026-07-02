@@ -1,0 +1,132 @@
+---
+import Badge from "@/components/atoms/badge.astro";
+import { formatDate } from "@/lib/helpers/format-date";
+import type { Article } from "@/lib/infrastructure/articles/fetch";
+import { Image } from "astro:assets";
+import { render } from "astro:content";
+
+interface Props {
+  article: Article;
+}
+
+const { article } = Astro.props;
+const { Content } = await render(article);
+---
+
+<article>
+  <div class="mb-5.5">
+    <!-- Back button -->
+    <a
+      href="/blog"
+      class="group hover:text-primary inline-block w-fit text-sm transition-colors"
+    >
+      <span
+        aria-hidden="true"
+        class="mr-2 inline-block transition-transform group-hover:-translate-x-0.5"
+        >&larr;</span
+      >
+
+      <span><span class="text-primary">cd</span> ~/blog</span>
+    </a>
+  </div>
+
+  <!-- tags -->
+  <div class="mb-4.5 flex flex-row flex-wrap items-center gap-2">
+    {article.data.tags.map((tag) => <Badge>{tag}</Badge>)}
+  </div>
+
+  <h1 class="article-title text-foreground mb-5 leading-[1.14] tracking-tight">
+    {article.data.title}
+  </h1>
+
+  <!-- metadata -->
+  <div
+    class="text-foreground/40 border-b-foreground/10 mb-9 flex items-center gap-4 border-b pb-6.5 text-xs"
+  >
+    <!-- Date -->
+    <span>{formatDate(article.data.date)}</span>
+
+    <span>.</span>
+
+    <!-- Estimated reading time -->
+    <span>{article.data.estimatedReadingTime} min</span>
+  </div>
+
+  <!-- cover -->
+  <Image
+    class="border-foreground/5 mb-10 flex w-full items-center justify-center rounded-2xl border"
+    src={article.data.cover.url}
+    alt={article.data.cover.alt}
+  />
+
+  <div class="article-content">
+    <Content />
+  </div>
+</article>
+
+<style>
+  @reference "../../../styles/global.css";
+
+  .article-content :global(*) {
+    @apply text-foreground/70 text-base;
+    line-height: 1.78;
+  }
+
+  .article-content :global(h2),
+  .article-content :global(h3),
+  .article-content :global(h4) {
+    @apply text-foreground font-mono! font-semibold;
+    line-height: 1.14;
+    margin-bottom: 20px;
+    letter-spacing: -0.02em;
+  }
+
+  .article-content :global(h2) {
+    font-size: 24px;
+    margin-top: 46px;
+    margin-bottom: 18px;
+  }
+
+  .article-content :global(h2)::before {
+    @apply text-primary;
+    content: "## ";
+  }
+
+  .article-content :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 28px 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .article-content :global(th),
+  .article-content :global(td) {
+    @apply border-foreground/10 border;
+    padding: 11px 16px;
+    text-align: left;
+  }
+
+  .article-content :global(th) {
+    @apply text-foreground bg-foreground/5 border-b-foreground/25 font-mono! font-semibold;
+    border-bottom-width: 2px;
+  }
+
+  .article-content :global(td) {
+    @apply text-foreground/70;
+  }
+
+  :global(html[data-mode="immersive"]) .article-title {
+    @apply font-mono-heading!;
+    font-size: clamp(44px, 6vw, 72px);
+  }
+
+  :global(html[data-mode="regular"]) .article-title {
+    @apply font-mono! font-semibold;
+    font-size: clamp(30px, 4vw, 42px);
+  }
+
+  .article-content :global(tbody tr:hover) {
+    @apply bg-foreground/3;
+  }
+</style>

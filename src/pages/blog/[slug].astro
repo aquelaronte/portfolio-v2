@@ -1,8 +1,7 @@
 ---
-import BlogLayout from "@/components/layouts/blog-layout.astro";
 import MainLayout from "@/components/layouts/main-layout.astro";
+import ArticlePage from "@/components/pages/article/article-page.astro";
 import type { GetStaticPaths } from "astro";
-import { render } from "astro:content";
 import { getCollection } from "astro:content";
 
 export const getStaticPaths = (async () => {
@@ -15,11 +14,13 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths;
 
 const { article } = Astro.props;
-const { Content } = await render(article);
 ---
 
-<MainLayout title={article.data.title} clientRouter>
-  <BlogLayout transition:persist>
-    <Content />
-  </BlogLayout>
+<MainLayout
+  title={article.data.title}
+  transition:name="root-layout"
+  transition:animate={"fade"}
+  clientRouter
+>
+  <ArticlePage article={article} />
 </MainLayout>

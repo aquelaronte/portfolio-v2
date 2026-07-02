@@ -1,0 +1,46 @@
+<div
+  class="bg-background/80 border-foreground/10 fixed top-17.5 right-6.5 z-50 flex items-center gap-2 rounded-xl border px-2 py-1.5 text-xs"
+>
+  <span class="text-foreground/80 px-1">modo:</span>
+  <span class="button" data-mode-btn="regular" data-active="true">regular</span>
+  <span class="button" data-mode-btn="immersive">inmersivo</span>
+</div>
+
+<script>
+  const STORAGE_KEY = "reading-mode";
+
+  function syncButtons(mode: string) {
+    document.querySelectorAll<HTMLElement>("[data-mode-btn]").forEach((btn) => {
+      btn.dataset.active = String(btn.dataset.modeBtn === mode);
+    });
+  }
+
+  function setMode(mode: string) {
+    document.documentElement.dataset.mode = mode;
+    localStorage.setItem(STORAGE_KEY, mode);
+    syncButtons(mode);
+  }
+
+  function init() {
+    const current = document.documentElement.dataset.mode || "regular";
+    syncButtons(current);
+
+    document.querySelectorAll<HTMLElement>("[data-mode-btn]").forEach((btn) => {
+      btn.addEventListener("click", () => setMode(btn.dataset.modeBtn!));
+    });
+  }
+
+  document.addEventListener("astro:page-load", init);
+</script>
+
+<style>
+  @reference "../../../styles/global.css";
+
+  .button {
+    @apply text-foreground/80 cursor-pointer rounded-lg px-2.5 py-1.5 font-semibold;
+  }
+
+  .button[data-active="true"] {
+    @apply text-background bg-primary;
+  }
+</style>

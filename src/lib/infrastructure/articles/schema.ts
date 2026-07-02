@@ -17,7 +17,3 @@ export const articleSchema = ({ image }: SchemaContext) =>
     cover: articleImageSchema(image),
     estimatedReadingTime: z.number().positive(),
   });
-
-export type ArticleImage = z.infer<ReturnType<typeof articleImageSchema>>;
-export type Article = z.infer<ReturnType<typeof articleSchema>>;
-export type ArticleListItem = Article & { id: string };
