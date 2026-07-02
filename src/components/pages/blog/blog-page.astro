@@ -2,28 +2,14 @@
 import TerminalLine from "@/components/atoms/terminal-line.astro";
 import Hero from "./hero.astro";
 import Showcase from "./showcase.astro";
-import TopBar from "./top-bar.astro";
 import TerminalCursor from "@/components/atoms/terminal-cursor.astro";
-import bgVideo from "@/assets/blog/background.webm";
 ---
 
-<video
-  class="fixed inset-0 -z-20 h-full w-full object-cover"
-  src={bgVideo}
-  autoplay
-  loop
-  muted
-  playsinline></video>
-<div class="bg-background/80 fixed inset-0 -z-10 backdrop-blur-xl"></div>
+<Hero />
+<Showcase />
 
-<TopBar />
-<main class="relative mx-auto max-w-[100vw] px-8 pb-30">
-  <Hero />
-  <Showcase />
-
-  <div class="mt-8 flex w-full items-center justify-center">
-    <TerminalLine>
-      - end of stream - <TerminalCursor />
-    </TerminalLine>
-  </div>
-</main>
+<div class="mt-8 flex w-full items-center justify-center">
+  <TerminalLine>
+    - end of stream - <TerminalCursor />
+  </TerminalLine>
+</div>

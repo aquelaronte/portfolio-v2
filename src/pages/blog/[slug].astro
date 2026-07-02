@@ -1,0 +1,25 @@
+---
+import BlogLayout from "@/components/layouts/blog-layout.astro";
+import MainLayout from "@/components/layouts/main-layout.astro";
+import type { GetStaticPaths } from "astro";
+import { render } from "astro:content";
+import { getCollection } from "astro:content";
+
+export const getStaticPaths = (async () => {
+  const articles = await getCollection("blog");
+
+  return articles.map((article) => ({
+    params: { slug: article.id },
+    props: { article: article },
+  }));
+}) satisfies GetStaticPaths;
+
+const { article } = Astro.props;
+const { Content } = await render(article);
+---
+
+<MainLayout title={article.data.title} clientRouter>
+  <BlogLayout transition:persist>
+    <Content />
+  </BlogLayout>
+</MainLayout>

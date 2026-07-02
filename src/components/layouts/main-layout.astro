@@ -1,14 +1,21 @@
 ---
 import "@/styles/global.css";
 import { Font } from "astro:assets";
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title: string;
   description?: string;
   class?: string;
+  clientRouter?: boolean;
 }
 
-const { title, class: className, description } = Astro.props;
+const {
+  title,
+  class: className,
+  description,
+  clientRouter = false,
+} = Astro.props;
 ---
 
 <html lang="es">
@@ -23,6 +30,8 @@ const { title, class: className, description } = Astro.props;
 
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
+
+    {clientRouter && <ClientRouter />}
   </head>
   <body class={className}>
     <slot />

@@ -8,9 +8,11 @@ import react from "@astrojs/react";
 
 import cloudflare from "@astrojs/cloudflare";
 
+import mdx from "@astrojs/mdx";
+
 // https://astro.build/config
 export default defineConfig({
-  integrations: [icon(), react()],
+  integrations: [icon(), react(), mdx()],
 
   vite: {
     plugins: [tailwindcss()],
@@ -36,5 +38,7 @@ export default defineConfig({
     },
   ],
 
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    prerenderEnvironment: 'node'
+  }),
 });
