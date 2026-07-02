@@ -1,0 +1,22 @@
+---
+import Separator from "@/components/atoms/separator.astro";
+import TerminalLine from "@/components/atoms/terminal-line.astro";
+import { fetchAllArticles } from "@/lib/infrastructure/articles/fetch";
+import ArticleCard from "@/components/molecules/article-card.astro";
+
+const [featured, ...articles] = await fetchAllArticles();
+---
+
+<Separator>
+  <TerminalLine class="tracking-widest" command="ls -la">
+    ~/post --recent
+  </TerminalLine>
+  <p slot="after" class="text-foreground/55 text-xs">
+    {articles.length} artículos
+  </p>
+</Separator>
+<ArticleCard article={featured} featured />
+
+<div class="grid grid-cols-3">
+  {articles.map((article) => <ArticleCard article={article} />)}
+</div>

@@ -1,0 +1,23 @@
+---
+interface Props {
+  variant?: "default" | "primary";
+  class?: string;
+}
+
+const { variant = "default", class: className } = Astro.props;
+
+const variantStyles: Record<typeof variant, string> = {
+  default: "text-foreground/80 text-foreground/30",
+  primary: "text-primary bg-primary/25",
+};
+---
+
+<span
+  class:list={[
+    "rounded-md px-2.5 py-1 text-xs tracking-widest uppercase",
+    variantStyles[variant],
+    className,
+  ]}
+>
+  <slot />
+</span>

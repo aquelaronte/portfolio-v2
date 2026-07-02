@@ -1,0 +1,30 @@
+---
+import TerminalCursor from "@/components/atoms/terminal-cursor.astro";
+import TerminalLine from "@/components/atoms/terminal-line.astro";
+---
+
+<header
+  class="border-b-foreground/10 bg-background sticky top-0 z-20 flex items-center justify-between gap-4 border-b px-6.5 py-3.5"
+>
+  <div class="flex items-center gap-2.5 text-sm select-none">
+    <span class="flex gap-1.5">
+      <span class="size-2.5 cursor-pointer rounded-full bg-[rgb(255,95,87)]"
+      ></span>
+      <span class="size-2.5 cursor-pointer rounded-full bg-[rgb(254,188,46)]"
+      ></span>
+      <span class="size-2.5 rounded-full bg-[rgb(40,200,64)]"></span>
+    </span>
+    <span class="text-foreground/70"> guest </span>
+    <span>:</span>
+    <span>
+      <TerminalLine>
+        ~/blog <TerminalCursor />
+      </TerminalLine>
+    </span>
+  </div>
+  <div
+    class="bg-primary cursor-pointer rounded-md border px-2 py-1.5 text-xs text-black"
+  >
+    Sobre mi
+  </div>
+</header>

@@ -1,0 +1,16 @@
+---
+import TerminalCursor from "@/components/atoms/terminal-cursor.astro";
+import TerminalLine from "@/components/atoms/terminal-line.astro";
+---
+
+<section class="pt-22 pb-14">
+  <TerminalLine command="cat" class="pb-5.5"> ~/blog/README.md</TerminalLine>
+  <h1 class="text-[clamp(72px,11vw,148px)] leading-[0.9] tracking-wide">
+    notas de campo
+  </h1>
+  <p class="text-foreground/55 mt-5.5 max-w-155 text-sm leading-[1.7]">
+    aquí encontraras mis apuntes y observaciones sobre los retos a los que me
+    enfrento sobre arquitectura de software, infraestructura cloud e
+    inteligencia artificial <TerminalCursor />
+  </p>
+</section>

@@ -1,0 +1,13 @@
+---
+interface Props {
+  class?: string;
+  command?: string;
+}
+
+const { class: className, command } = Astro.props;
+---
+
+<p class:list={["text-sm tracking-wide", className]}>
+  <span class="text-green-400">&gt;{" "}</span>
+  {command && <span class="text-primary">{command} </span>}<slot />
+</p>
