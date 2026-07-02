@@ -144,11 +144,39 @@ export default function TerminalScreen({ className }: { className?: string }) {
         {phase === "testimonials" && <Testimonials onClose={backToDesktop} />}
       </div>
 
-      {/* hint that 'q' returns to the desktop */}
+      {/* hint that 'q' returns to the desktop (keyboard devices) */}
       {phase !== "desktop" && (
-        <span className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 text-xs text-white/40">
+        <span className="pointer-events-none absolute bottom-4 left-1/2 z-30 hidden -translate-x-1/2 text-xs text-white/40 sm:block">
           q para ir al escritorio
         </span>
+      )}
+
+      {/* touch devices: tappable keycaps stand in for Enter / 'q' */}
+      {phase !== "desktop" && (
+        <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 sm:hidden">
+          {NEXT_PHASE[phase] && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!visible) return;
+                const next = NEXT_PHASE[phase];
+                if (next) advance(next);
+              }}
+              className="flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 font-mono text-xs text-white/80 backdrop-blur active:bg-white/20"
+            >
+              Enter <span aria-hidden="true">▸</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (visible) advance("desktop");
+            }}
+            className="flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 font-mono text-xs text-white/80 backdrop-blur active:bg-white/20"
+          >
+            q <span aria-hidden="true">✕</span>
+          </button>
+        </div>
       )}
     </div>
   );

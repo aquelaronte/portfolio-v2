@@ -230,7 +230,7 @@ export default function Navigator({
       )}
     >
       {/* browser chrome */}
-      <div className="flex items-center gap-3 border-b border-neutral-200 bg-neutral-100 px-4 py-2">
+      <div className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-100 px-3 py-2 sm:gap-3 sm:px-4">
         <WindowDots onClose={onClose} />
 
         {/* nav controls */}
@@ -256,20 +256,20 @@ export default function Navigator({
         </div>
 
         {/* address bar */}
-        <div className="flex flex-1 items-center gap-2 rounded-full bg-white px-3 py-1 text-sm text-neutral-400 ring-1 ring-neutral-200">
-          <Lock size={13} />
-          <span>{url}</span>
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-1 text-sm text-neutral-400 ring-1 ring-neutral-200">
+          <Lock size={13} className="shrink-0" />
+          <span className="truncate">{url}</span>
         </div>
 
         {onOpenTestimonials && (
           <button
             type="button"
             onClick={onOpenTestimonials}
-            className="flex items-center gap-1.5 rounded-md bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600 ring-1 ring-neutral-300 hover:bg-neutral-200"
+            className="flex shrink-0 items-center gap-1.5 rounded-md bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600 ring-1 ring-neutral-300 hover:bg-neutral-200"
             aria-label="Abrir testimonials"
           >
             <Gamepad2 size={14} />
-            Testimonials
+            <span className="hidden sm:inline">Testimonials</span>
           </button>
         )}
       </div>
@@ -285,7 +285,7 @@ export default function Navigator({
       {/* page content */}
       <div
         ref={scrollRef}
-        className="flex flex-1 flex-col gap-10 overflow-y-auto bg-white px-20 py-10"
+        className="flex flex-1 flex-col gap-10 overflow-y-auto bg-white px-5 py-6 sm:px-20 sm:py-10"
       >
         {active ? (
           <ProjectDetail project={active} onBack={back} />
@@ -334,7 +334,7 @@ function ContactCompose({ onClose }: { onClose: () => void }) {
   return (
     <form
       onSubmit={send}
-      className="absolute right-6 bottom-6 z-20 flex h-112 w-104 flex-col overflow-hidden rounded-t-lg bg-white text-sm text-neutral-800 shadow-2xl ring-1 ring-black/10"
+      className="absolute inset-x-2 bottom-2 z-20 flex h-[70vh] flex-col overflow-hidden rounded-lg bg-white text-sm text-neutral-800 shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:h-112 sm:w-104 sm:rounded-t-lg"
     >
       {/* header */}
       <div className="flex items-center justify-between bg-[#404040] px-4 py-2 text-white">
@@ -402,14 +402,14 @@ function Project({
     <div
       ref={ref}
       className={cn(
-        "flex w-full flex-row items-center justify-between gap-10 transition-all duration-700 ease-out",
+        "flex w-full flex-col items-start justify-between gap-5 transition-all duration-700 ease-out sm:flex-row sm:items-center sm:gap-10",
         inView ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
       )}
     >
-      <img src={cover} className="h-auto w-[40%] rounded-lg" />
+      <img src={cover} className="h-auto w-full rounded-lg sm:w-[40%]" />
 
       <div className="flex flex-col gap-3 py-4">
-        <h3 className="font-sans! text-3xl">{title}</h3>
+        <h3 className="font-sans! text-2xl sm:text-3xl">{title}</h3>
 
         <p>{description}</p>
 
@@ -483,28 +483,35 @@ function ProjectDetail({
 
   return (
     <div className="flex flex-col gap-6 font-sans! text-lg text-neutral-700">
-      <div className="relative -mx-20 -mt-10">
-        <img src={cover} className="h-72 w-full object-cover object-center" />
+      <div className="relative -mx-5 -mt-6 sm:-mx-20 sm:-mt-10">
+        {/* image + overlaid title: the title anchors to this box, not the
+            whole header, so mobile buttons below never overlap it */}
+        <div className="relative">
+          <img
+            src={cover}
+            className="h-56 w-full object-cover object-center sm:h-72"
+          />
 
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="absolute top-5 left-20 flex w-fit items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-neutral-900 shadow-sm ring-1 ring-black/10 backdrop-blur hover:bg-white"
-          >
-            <ArrowLeft size={16} />
-            Volver
-          </button>
-        )}
+            {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="absolute top-5 left-5 flex w-fit items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-neutral-900 shadow-sm ring-1 ring-black/10 backdrop-blur hover:bg-white sm:left-20"
+            >
+              <ArrowLeft size={16} />
+              Volver
+            </button>
+          )}
 
-        {/* fade starting around the middle of the image down to the page */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-white via-white/80 to-transparent" />
+          {/* fade starting around the middle of the image down to the page */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-white via-white/80 to-transparent" />
 
-        <h2 className="absolute bottom-5 left-20 font-sans! text-5xl font-medium text-neutral-900">
-          {title}
-        </h2>
+          <h2 className="absolute bottom-5 left-5 font-sans! text-3xl font-medium text-neutral-900 sm:left-20 sm:text-5xl">
+            {title}
+          </h2>
+        </div>
 
-        <div className="absolute right-20 bottom-7 flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 px-5 pt-4 sm:absolute sm:right-20 sm:bottom-7 sm:px-0 sm:pt-0">
           {repo && (
             <a
               href={repo}

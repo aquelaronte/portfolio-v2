@@ -4,7 +4,7 @@ import type { TerminalLine } from "@/components/organisms/terminal";
 export const welcomeLines: TerminalLine[] = [
   {
     content: "Brahian Arias",
-    className: "font-mono-heading text-9xl",
+    className: "font-mono-heading sm:text-9xl text-7xl",
   },
   {
     content: "Software Engineer",

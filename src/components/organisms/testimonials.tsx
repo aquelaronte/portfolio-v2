@@ -74,9 +74,9 @@ export default function Testimonials({
         />
       </div>
 
-      {/* stage */}
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-10 p-8">
-        <h2 className="font-mono-heading text-primary text-6xl font-bold drop-shadow-[0_0_25px_var(--color-primary)]">
+      {/* stage — scrollable so tall content (stacked cards on mobile) is reachable */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center gap-6 overflow-y-auto p-6 sm:justify-center sm:gap-10 sm:p-8">
+        <h2 className="font-mono-heading text-primary shrink-0 text-4xl font-bold drop-shadow-[0_0_25px_var(--color-primary)] sm:text-6xl">
           Testimonios
         </h2>
 

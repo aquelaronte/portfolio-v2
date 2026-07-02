@@ -6,28 +6,28 @@ import { useEffect, useState, type ReactNode } from "react";
 
 const slides: ReactNode[] = [
   // Slide 1 — title
-  <Slide className="flex flex-col items-center justify-center gap-8 text-center">
-    <h2 className="font-mono-heading text-8xl font-bold drop-shadow-[0_0_25px_rgba(168,85,247,0.65)]">
+  <Slide className="flex flex-col items-center justify-center gap-4 px-4 text-center sm:gap-8">
+    <h2 className="font-mono-heading text-4xl font-bold drop-shadow-[0_0_25px_rgba(168,85,247,0.65)] sm:text-8xl">
       Mi experiencia
     </h2>
 
-    <div className="space-y-1 text-xl font-medium text-white/90">
+    <div className="space-y-1 text-base font-medium text-white/90 sm:text-xl">
       <p>By Brahian Arias</p>
     </div>
 
     <p className="absolute bottom-5">Hecho con mucho amor y café</p>
   </Slide>,
   // Slide 2 - First job
-  <Slide className="px-10 py-8">
+  <Slide className="overflow-y-auto px-5 py-6 sm:px-10 sm:py-8">
     <div className="max-w-2xl">
-      <h2 className="font-mono-heading text-7xl font-bold drop-shadow-[0_0_25px_rgba(168,85,247,0.65)]">
+      <h2 className="font-mono-heading text-4xl font-bold drop-shadow-[0_0_25px_rgba(168,85,247,0.65)] sm:text-7xl">
         Fundación ROFÉ
       </h2>
       <p className="mt-1 font-mono text-sm tracking-wide text-indigo-300">
         mayo - junio (2023)
       </p>
 
-      <p className="mt-8 text-white/90">
+      <p className="mt-6 text-white/90 sm:mt-8">
         Mi primer contacto con el software empezó mientras aún estudiaba en
         secundaria, cuando tuve la oportunidad de trabajar a mano con la
         fundación ROFÉ haciendo mantenimiento supervisado durante un tiempo
@@ -40,16 +40,16 @@ const slides: ReactNode[] = [
     </div>
   </Slide>,
   // Slide 3 - Second job
-  <Slide className="px-10 py-8">
+  <Slide className="overflow-y-auto px-5 py-6 sm:px-10 sm:py-8">
     <div className="max-w-2xl">
-      <h2 className="font-mono-heading text-7xl font-bold drop-shadow-[0_0_25px_rgba(168,85,247,0.65)]">
+      <h2 className="font-mono-heading text-4xl font-bold drop-shadow-[0_0_25px_rgba(168,85,247,0.65)] sm:text-7xl">
         Byte4Bit
       </h2>
       <p className="mt-1 font-mono text-sm tracking-wide text-indigo-300">
         enero (2024) - mayo (2026)
       </p>
 
-      <p className="mt-8 text-white/90">
+      <p className="mt-6 text-white/90 sm:mt-8">
         Byte4Bit es una startup que desarrolla soluciones tecnológicas para
         clientes terceros.
       </p>
@@ -160,7 +160,7 @@ export default function PowerpointShowcase({
             <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
             <path d="M2 12h20"></path>
           </svg>
-          Abrir navegador
+          <span className="hidden sm:inline">Abrir navegador</span>
         </button>
       </div>
 
@@ -190,9 +190,9 @@ export default function PowerpointShowcase({
           ))}
         </div>
 
-        {/* slide stage */}
-        <div className="flex flex-1 items-center justify-center bg-neutral-200 p-8">
-          <div className="relative aspect-video w-full max-w-4xl overflow-hidden rounded-sm bg-white shadow-lg ring-1 ring-black/5">
+        {/* slide stage — fills the screen on mobile, locks to 16:9 on larger screens */}
+        <div className="flex flex-1 items-center justify-center bg-neutral-200 p-2 sm:p-8">
+          <div className="relative h-full w-full overflow-hidden rounded-sm bg-white shadow-lg ring-1 ring-black/5 sm:aspect-video sm:h-auto sm:max-w-4xl">
             {slides[current]}
           </div>
         </div>

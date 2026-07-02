@@ -53,7 +53,7 @@ export default function Terminal({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 overflow-y-auto rounded-xl bg-black/70 px-6 pt-5 text-white outline outline-neutral-600 backdrop-blur-md",
+        "flex flex-col gap-2 overflow-y-auto rounded-xl bg-black/70 px-6 pt-5 pb-20 text-white outline outline-neutral-600 backdrop-blur-md sm:pb-0",
         "scrollbar-thin [scrollbar-color:#404040_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-track]:bg-transparent",
         className,
       )}
