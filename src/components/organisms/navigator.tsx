@@ -152,7 +152,7 @@ const projects: ProjectData[] = [
       },
     ],
     link: "https://dayvent.app/",
-    article: "#",
+    article: "/blog/dayvent-how-i-structured-a-pos-system-from-scratch",
   },
 ];
 
