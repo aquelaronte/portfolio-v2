@@ -1,9 +1,9 @@
 ---
 title: "Dayvent: Cómo estructuré un sistema POS/ERP desde cero"
-description: "¿A cuales retos técnicos me enfrento al crear un sistema de ventas? ¿Cómo hago que mi software sea más competitivo? Son preguntas que están en nuestra cabeza siempre que pensamos en construir un software de gestión empresarial, especialmente en un mercado tan agresivamente competitivo."
+description: "Rendimiento o productividad: esa decisión define la arquitectura de cualquier sistema. Te muestro mi cadena de razonamiento al diseñar Dayvent, un POS/ERP para restaurantes, capa por capa: infraestructura, base de datos y backend."
 date: 2026-07-02
-tags: ["Software Engineering", "Infrastructure", "RAG", "AI"]
-estimatedReadingTime: 10
+tags: ["Software Engineering", "System Design", "Infrastructure", "Go"]
+estimatedReadingTime: 12
 cover:
   url: ../../../assets/projects/dayvent/cover.png
   alt: "Dayvent POS/ERP architecture"
@@ -11,11 +11,164 @@ cover:
 
 ## Glosario
 
-| Término     | Significado                                                                                                                                                                                                                                                                                                           |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sistema POS | Los sistemas de punto de venta o sistemas POS (Point of Sale), son aquellos sistemas cuya finalidad es destinada a cubrir lo que hace una caja registradora en un negocio y sus funciones subyacentes, entre ellas, registrar productos, facturar ventas, hacer seguimiento de las ventas y llevar conteo del dinero. |
-| SaaS        | Por software como servicio o Software as a Service (SaaS), se entiende aquellos programas informáticos los cuales brindan un servicio a cambio de un cobro monetario, por ejemplo, Netflix ofrece el servicio exclusivo de streaming a cambio de pagar una suscripción mensual.                                       |
+| Término        | Significado                                                                                                                                                                                                                                                                                                           |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sistema POS    | Los sistemas de punto de venta o sistemas POS (Point of Sale) son aquellos cuya finalidad es cubrir lo que hace una caja registradora en un negocio y sus funciones subyacentes: registrar productos, facturar ventas, hacer seguimiento de las ventas y llevar el conteo del dinero.                                    |
+| SaaS           | Software as a Service (SaaS) son programas informáticos que brindan un servicio a cambio de un cobro monetario. Por ejemplo, Netflix ofrece streaming a cambio de una suscripción mensual.                                                                                                                              |
+| FaaS           | Function as a Service (FaaS) es un servicio en la nube que te permite ejecutar una función atómica en una máquina remota.                                                                                                                                                                                              |
+| Tenant         | Cada cliente aislado dentro de un mismo sistema SaaS multiinquilino. En Dayvent, cada restaurante es un tenant que comparte la infraestructura pero no sus datos.                                                                                                                                                       |
+| Arranque en frío | El tiempo que tarda una instancia nueva en estar lista para atender su primera petición. Es crítico en entornos serverless, donde las instancias se crean y destruyen constantemente.                                                                                                                                 |
 
-## Planteamiento
+## Contexto
 
-Dayvent es un sistema POS para restaurantes el cual está en crecimiento. Actualmente se encuentra haciendo una transición gradual de ser un software privado para un grupo cerrado de personas, ha empezar a ser un SaaS de consumo masivo adoptando clientes nuevos exclusivos hasta estabilizar las funcionalidades en los casos de prueba en escenarios reales.
+Dayvent es un sistema POS para restaurantes que está en crecimiento. Actualmente atraviesa una transición gradual: de ser un software privado para un grupo cerrado de personas, a convertirse en un SaaS de consumo masivo, adoptando clientes nuevos de forma controlada hasta estabilizar las funcionalidades en escenarios reales.
+
+Lo construimos tres socios: uno enfocado en el frontend con React, otro en el backend con Java (aprendiendo Go en el camino) y yo como tech-lead, con manejo de React, Java y Go. Eso importa, porque casi todas las decisiones de arquitectura que voy a contar salen de cruzar tres variables: **el dominio del problema, el presupuesto y las capacidades reales del equipo**.
+
+Y todas esas decisiones giran alrededor de una sola pregunta.
+
+## La pregunta que define toda la arquitectura
+
+**¿Debería priorizar el rendimiento o la productividad?**
+
+La respuesta siempre ha sido "depende". Si el rendimiento no importara en ningún negocio, todos usaríamos Python para el backend y React para el frontend. Y en el caso contrario, si no importara la productividad, todos escribiríamos el backend en Rust y el frontend en JavaScript vanilla.
+
+- El **rendimiento** prioriza la velocidad de respuesta y la calidad del software.
+- La **productividad** prioriza qué tan rápido podemos desarrollar ese software.
+
+No es una decisión que se toma una sola vez al inicio del proyecto: se toma en cada capa del sistema. Este artículo es, en el fondo, la historia de cómo respondí esa pregunta —una y otra vez— al diseñar Dayvent.
+
+Antes de aterrizarlo en Dayvent, quiero dejar claro el marco con el que razono cada capa. Voy a recorrer las tres fases de diseño por las que pasé:
+
+1. Infraestructura
+2. Base de datos
+3. Backend / Frontend
+
+## El marco: cómo razono cada capa
+
+Los sistemas POS deben ser rápidos. Un negocio en hora pico, con una fila larga de clientes, no se puede permitir que su sistema POS sea el cuello de botella. Estructurar bien la base de datos, tener buenas prácticas de desarrollo y conocer de diseño de sistemas es clave para lograr alto rendimiento en estos escenarios.
+
+Pero "rápido" no significa "sobreingeniería", y "productivo" no significa "hacer las cosas mal". El marco vive entre esos dos extremos.
+
+### Infraestructura
+
+Antes de proceder con cualquier parte del diseño, debemos pensar primero en qué entorno va a ejecutar nuestro backend, base de datos, frontend y demás servicios.
+
+Es importante hacerlo desde el primer momento, porque los sistemas que no conciben la infraestructura antes de empezar su diseño terminan limitados al momento de desplegarse. Esta parte viene muy ligada al presupuesto y al contexto donde se desarrolla el sistema.
+
+Déjame mostrarlo con un ejemplo que ilustra por qué esto no es un detalle menor. Supongamos que ya diseñaste y desarrollaste un sistema para una empresa cuya infraestructura está montada en `AWS`. El backend lo hiciste con NestJS, la base de datos con PostgreSQL y el frontend con Next.js. Todo funciona perfecto en tu máquina local, pero la empresa no destinó presupuesto suficiente para pagar un `EC2` para tu backend.
+
+Con ese presupuesto limitado, optas por lo siguiente:
+
+1. Despliegas el backend de NestJS en `AWS Lambda` por su naturaleza serverless y lo expones con `AWS API Gateway`, lo cual parece ajustarse al presupuesto.
+2. Creas una instancia de base de datos en `AWS RDS` y conectas el backend directamente usando `Prisma ORM`.
+3. Despliegas el frontend de Next.js en Vercel.
+
+Semanas después, la empresa se queja: les llegó una factura de 3.000 USD. Y ahí te preguntas: *"¿Qué habré hecho mal?"*.
+
+Lo que sucedió es que no concebiste la infraestructura al momento de diseñar. No pensaste en el presupuesto, ni en el entorno de ejecución, ni en lo que realmente necesita tu software. Cometiste tres errores de diseño muy comunes:
+
+1. **NestJS depende fuertemente de decoradores de TypeScript**, lo cual alarga el arranque porque hacer `reflection` a través de toda la app es una tarea intensiva de CPU. En un entorno serverless, esto se traduce en arranques en frío bastante largos. Con NestJS, casi por eficiencia, estás obligado a usar un EC2.
+2. **Las lambdas de AWS son FaaS**: están pensadas para hacer una sola tarea, más parecidas a un endpoint. Hospedar una aplicación de backend entera en una lambda es catastrófico, porque AWS crea una instancia de tu lambda por cada petición entrante.
+3. **Los entornos serverless con varias instancias no deben conectarse directamente a la base de datos.** Cada instancia es independiente y usa su propio cliente de `Prisma ORM`, así que cada ejecución abre nuevas conexiones. Postgres tiene un límite de conexiones y rechaza las que lo exceden; a nivel de red eso se traduce en timeouts esperando el pool de conexiones. Se evita con un pooler como `AWS RDS Proxy`.
+
+Todos esos errores se pudieron evitar pensando primero en la infraestructura. De haber sabido que la app iba a ejecutarse en un entorno serverless, habrías creado endpoints atómicos y desplegado cada uno como una lambda.
+
+Un correcto planteamiento de infraestructura implica conocer las limitaciones del entorno, el presupuesto disponible, las necesidades especiales de la aplicación y el proveedor de nube que vas a usar.
+
+**Ojo:** no hace falta que decidas ya los servicios concretos que usará tu app; eso va al final. Este paso solo comprende entender el entorno y sus limitaciones. Guarda ese ejemplo en la cabeza, porque más adelante vas a ver cómo Dayvent evitó exactamente esta trampa.
+
+### Base de datos
+
+Plantear la base de datos temprano es fundamental, porque por un lado te da un entendimiento de cómo funciona el negocio y, por otro, te permite identificar la estructura de datos.
+
+Este paso no solo consiste en definir la estructura: también hay que comprender los desafíos que enfrentará la aplicación para, entre las soluciones posibles, escoger la que mejor se ajuste a la situación.
+
+Por ejemplo, si la aplicación es de mensajería, quizás lo más adecuado sea una base de datos no relacional como `MongoDB`: por la baja complejidad de las lecturas, MongoDB puede recibir flujos continuos de datos de forma muy eficiente.
+
+Para un sistema POS, en cambio, lo más adecuado es una base de datos relacional, porque las ventas se conectan con productos y stock, y la complejidad de las lecturas se vuelve alta. Eso para MongoDB es más difícil de manejar: si bien su aggregation pipeline da flexibilidad para hacer `lookup` entre colecciones, se enfrenta a un problema de rendimiento al unir documentos y a uno de memoria al incrustar documentos BSON enteros en el resultado. Postgres, en cambio, une columnas en memoria de forma mucho más compacta.
+
+### Backend / Frontend
+
+Backend y frontend comparten una filosofía parecida a la hora de diseñarlos, porque ambos se enfrentan a la misma pregunta central: **¿rendimiento o productividad?**
+
+Para responderla en cada caso, conviene identificar lo siguiente:
+
+1. **Plazos de entrega:** si tenemos stakeholders, debemos identificar un plazo para los entregables dirigidos a esos interesados.
+2. **Conocimientos del equipo:** si los plazos son ajustados y el equipo maneja `Java`, no es el momento de probar la tecnología de moda que viste en tendencia.
+3. **Presupuesto:** ¿cuánto presupuesto de infraestructura consume el sistema? ¿Cuánto consume el equipo de desarrollo? Son preguntas que hay que responder antes de elegir tecnologías.
+
+### El problema de la sobreingeniería
+
+Hay situaciones donde la balanza se inclina hacia el rendimiento: plazos generosos, expectativas de calidad altísimas, inversión grande. Aun así, la sobreingeniería sigue existiendo. No todo software enfocado en rendimiento debe estar compuesto por microservicios, ser event-driven e implementar el patrón hexagonal.
+
+Un frontend empieza a justificar micro-frontends cuando el ciclo de CI/CD se vuelve el cuello de botella entre cada release, al ser el monolito tan grande que necesita dividirse para optimizar los tiempos de entrega.
+
+Un backend justifica microservicios cuando el monolito ralentiza el ciclo de CI/CD, o cuando se beneficia de las características de otro lenguaje: por ejemplo, un microservicio de analíticas en Python con NumPy y Pandas.
+
+Diseñar un sistema enfocado en rendimiento implica usar las tecnologías y herramientas que garantizan un rendimiento excelente (ojo: excelente, no el mejor ni uno perfecto), sacrificando algo de tiempo de desarrollo.
+
+### El problema de la sobre-deuda técnica
+
+Del otro lado, en situaciones que tiran hacia la productividad —plazos cortos, poca inversión, salida inmediata a producción— existe la deuda técnica, que es aceptable hasta que se acumula demasiado.
+
+Cuando no se paga, las consecuencias son graves: los costos se elevan por la ineficiencia del sistema y los bugs se vuelven rutina.
+
+La productividad puede priorizarse sin tirar a la basura la arquitectura ni las buenas prácticas. Un sistema enfocado en productividad es aquel donde las tecnologías permiten un tiempo de desarrollo más corto, sacrificando algo de rendimiento. Eso es muy distinto a hacer las cosas mal, como ocurre cuando se acumula sobre-deuda técnica.
+
+## Dayvent en la práctica
+
+Con ese marco claro, vamos a lo concreto. ¿Hacia qué lado se inclinó la balanza en Dayvent?
+
+Hacia el **rendimiento**, y por tres razones muy concretas:
+
+- **El dominio lo exige.** Un POS que se traba en hora pico es un POS que pierde ventas. La velocidad no es un lujo, es un requisito del negocio.
+- **Es nuestro producto, a largo plazo.** No es un encargo puntual que entregamos y olvidamos; es un sistema que queremos sostener y escalar durante años. Invertir en rendimiento hoy es pagar menos deuda mañana.
+- **Los plazos eran generosos.** No teníamos la presión de una fecha de entrega inmediata, así que podíamos permitirnos sacrificar algo de productividad a cambio de calidad.
+
+Ahora, inclinarse hacia el rendimiento **no** significa activar la sobreingeniería. En cada capa busqué el punto donde el rendimiento fuera excelente sin volverse un monstruo inmanejable para un equipo de tres personas. Así lo razoné.
+
+### Infraestructura: GCP y Cloud Run
+
+¿Recuerdas la factura de 3.000 USD del ejemplo de AWS? La raíz del problema era meter un backend pesado y de arranque lento en un modelo FaaS que no estaba hecho para él. Yo quería lo contrario: **autoescalado y pago por uso, pero sin pagar el precio del arranque en frío ni el de un servidor fijo encendido las 24 horas.**
+
+Por eso elegí **Google Cloud Run**. Cloud Run ejecuta el backend como un contenedor con autoescalado: escala a cero cuando no hay tráfico y crece bajo demanda, pero no me obliga a partir la aplicación en funciones atómicas como una lambda. Es el punto medio exacto entre "pagar un EC2 fijo" y "forzar toda la app dentro de un FaaS". Y aquí es donde la decisión del backend y la de infraestructura se refuerzan: como el backend está en Go, que compila a un binario que arranca casi instantáneamente, el arranque en frío —el talón de Aquiles del ejemplo con NestJS— deja de ser un problema.
+
+Para el trabajo asíncrono uso **Cloud Tasks**. En Go es tentador lanzar una goroutine para todo, pero eso concentra la carga dentro de la misma instancia y termina generando throttling y presión de memoria cuando el volumen sube. Delegar esas tareas a una cola gestionada como Cloud Tasks me da control sobre la concurrencia, reintentos y ritmo de ejecución, sin ahogar las instancias que están atendiendo las ventas en tiempo real.
+
+### Base de datos: Postgres, particionado quirúrgico y ClickHouse
+
+Siguiendo el marco, para el núcleo transacional (ventas, productos, stock) la decisión fue **PostgreSQL**: las lecturas son relacionalmente complejas y Postgres las resuelve de forma compacta y rápida.
+
+Como Dayvent es multiinquilino, el modelo por defecto es simple: **tablas compartidas con un `tenant_id`**. Es la opción más productiva y suficiente para la gran mayoría de restaurantes. Pero no la apliqué a ciegas: **particiono por tenant solo en casos excepcionales, cuando un cliente "caliente" —con volumen de consultas muy alto— empieza a degradar el rendimiento de los demás**. Particionar tiene un costo operativo, así que lo pago únicamente donde el rendimiento lo justifica. Esto es exactamente el marco en acción: productividad por defecto, rendimiento donde el dato lo exige.
+
+Las analíticas son un caso aparte. Meter agregaciones pesadas (reportes, tendencias de ventas, dashboards) sobre la misma base transaccional castigaría al POS justo cuando más rápido debe ir. Por eso separé las cargas: el flujo OLTP vive en Postgres, y las consultas analíticas (OLAP) las resuelvo con **ClickHouse**, una base de datos columnar orientada a big data. Así, un dueño de restaurante puede correr un reporte pesado sin que la caja registradora del local de al lado sienta el golpe.
+
+### Backend / Frontend: Go donde importa, React donde conviene
+
+Aquí es donde la pregunta central se ve más clara, porque la respondí distinto para cada lado.
+
+En el **backend elegí Go**, la apuesta más clara por rendimiento: binarios pequeños de arranque instantáneo (perfectos para Cloud Run), excelente concurrencia y un consumo de recursos bajo. El costo es productividad —Go es más verboso y uno de mis socios venía de Java y lo estaba aprendiendo—, pero con plazos generosos y un producto a largo plazo, ese costo era perfectamente asumible. Como tech-lead que maneja Go, podía sostener la curva de aprendizaje del equipo.
+
+En el **frontend elegí React**, y esta vez me incliné hacia la productividad. El rendimiento del frontend importa, pero no es donde se gana o se pierde una venta en hora pico; ese peso lo carga el backend. React nos da un ecosistema enorme, velocidad de desarrollo y —clave— es la tecnología que el socio de frontend ya dominaba. Forzar aquí una tecnología ultra-optimizada habría sido sacrificar productividad real a cambio de un rendimiento que el dominio no reclamaba: sobreingeniería.
+
+Esa es la lección completa: no elegí "la mejor tecnología" en abstracto. Elegí rendimiento donde el negocio lo exigía (backend, base de datos, infraestructura) y productividad donde no lo hacía (frontend), usando siempre las capacidades reales de mi equipo como filtro.
+
+## Conclusiones
+
+Diseñar Dayvent no fue elegir de una vez por todas entre rendimiento y productividad, sino responder esa misma pregunta en cada capa con la información de esa capa:
+
+- **La infraestructura primero.** Pensar el entorno antes que el código evita facturas sorpresa y decisiones que después no se pueden desandar.
+- **Rendimiento donde el dominio lo exige, productividad donde no.** Go, Postgres y Cloud Run donde la velocidad es negocio; React donde lo que importa es entregar.
+- **Evita los dos extremos.** La sobreingeniería te hace pagar complejidad que nadie pidió; la sobre-deuda técnica te hace pagar intereses que nunca acaban. El buen diseño vive en el medio, y el punto medio lo define tu contexto: dominio, presupuesto y equipo.
+
+Si te llevas una sola idea, que sea esta: **no existe la arquitectura "correcta" en abstracto, existe la correcta para tu contexto.** Y saber leer ese contexto —cuándo pagar por rendimiento y cuándo pagar por velocidad de entrega— es, en el fondo, de lo que trata diseñar software.
+
+## Fuentes
+
+- [Google Cloud Run — documentación oficial](https://cloud.google.com/run/docs)
+- [Google Cloud Tasks — documentación oficial](https://cloud.google.com/tasks/docs)
+- [PostgreSQL — Table Partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html)
+- [ClickHouse — Why is ClickHouse fast?](https://clickhouse.com/docs/en/concepts/why-clickhouse-is-so-fast)
+- [Prisma — Connection pool y entornos serverless](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections)
+- [AWS RDS Proxy — documentación oficial](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.html)

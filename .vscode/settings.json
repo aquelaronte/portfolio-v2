@@ -11,5 +11,8 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
+  "[mdx]": {
+    "editor.wordWrap": "on"
+  },
   "editor.formatOnSave": true
 }

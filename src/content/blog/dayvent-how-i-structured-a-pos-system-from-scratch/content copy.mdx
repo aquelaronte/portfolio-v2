@@ -1,0 +1,130 @@
+---
+title: "Dayvent: Cómo estructuré un sistema POS/ERP desde cero"
+description: "¿A cuales retos técnicos me enfrento al crear un sistema de ventas? ¿Cómo hago que mi software sea más competitivo? Son preguntas que están en nuestra cabeza siempre que pensamos en construir un software de gestión empresarial, especialmente en un mercado tan agresivamente competitivo."
+date: 2026-07-02
+tags: ["Software Engineering", "Infrastructure", "RAG", "AI"]
+estimatedReadingTime: 10
+cover:
+  url: ../../../assets/projects/dayvent/cover.png
+  alt: "Dayvent POS/ERP architecture"
+---
+
+## Glosario
+
+| Término     | Significado                                                                                                                                                                                                                                                                                                           |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sistema POS | Los sistemas de punto de venta o sistemas POS (Point of Sale), son aquellos sistemas cuya finalidad es destinada a cubrir lo que hace una caja registradora en un negocio y sus funciones subyacentes, entre ellas, registrar productos, facturar ventas, hacer seguimiento de las ventas y llevar conteo del dinero. |
+| SaaS        | Por software como servicio o Software as a Service (SaaS), se entiende aquellos programas informáticos los cuales brindan un servicio a cambio de un cobro monetario, por ejemplo, Netflix ofrece el servicio exclusivo de streaming a cambio de pagar una suscripción mensual.                                       |
+| FaaS        | Function as a Service (FaaS) es un servicio en la nube que te permiten ejecutar una función atómica en una máquina remota. |
+
+## Contexto
+
+Dayvent es un sistema POS para restaurantes el cual está en crecimiento. Actualmente se encuentra haciendo una transición gradual de ser un software privado para un grupo cerrado de personas, ha empezar a ser un SaaS de consumo masivo adoptando clientes nuevos exclusivos hasta estabilizar las funcionalidades en los casos de prueba en escenarios reales.
+
+## Lecciones generales de diseño de software
+
+Los sistemas POS deben ser rápidos. Los negocios en hora pico con una fila larga de clientes no se pueden permitir que su sistema POS sea el cuello de botella en el negocio. Estructurar correctamente la base de datos, tener buenas prácticas de desarrollo y conocer de diseño de sistemas es clave para desarrollar un sistema de alto rendimiento en estos escenarios.
+
+Para ello, voy a separar a continuación las fases de diseño por las que pasé al diseñar Dayvent:
+1. Infraestructura
+2. Base de datos
+3. Backend / Frontend
+
+### Infrastructura
+
+Antes de proceder con cualquier parte del diseño, debemos de pensar primero en qué entorno va a ejecutar nuestro backend, base de datos, frontend y otros servicios de la nube.
+
+Desde el primer momento es importante pensar en la infraestructura porque los sistemas que no conciben la infraestructura antes de empezar su diseño, empiezan estando limitadas al momento de desplegarse porque esta parte del diseño viene muy ligada al presupuesto y el contexto donde se desarrolla el sistema.
+
+Supongamos que ya diseñaste y desarrollaste un sistema para una empresa cuya infraestructura está montada en `AWS`, dicho sistema lo hiciste con el backend en NestJS, la base de datos con PostgreSQL y el Frontend con Next.JS. Todo funciona perfecto en tu máquina local, pero dicha empresa no destinó el presupuesto suficiente para pagar un `EC2` para tu backend.
+
+Por ende, con el presupuesto limitado de la empresa para dicho proyecto, optas por hacer los siguientes pasos:
+
+1. Despliegas el backend de NestJS en `AWS Lambda` debido a su naturaleza serverless y lo expones usando `AWS API Gateway`, lo cual se ajusta perfectamente al presupuesto de la empresa
+2. Creas una instancia de base de datos en `AWS RDS` y conectas el backend directamente usando `Prisma ORM`
+3. Despliegas el frontend de `NextJS` en vercel
+
+Semanas después, la empresa se queja contigo porque les llegó una factura de 3.000 USD y ahí te cuestionas "¿Qué habré hecho mal?".
+
+Lo que sucedió es que no concebiste la infraestructura al momento de diseñar tu software, no pensaste en presupuestos, ni el entorno de ejecución, ni lo que necesita tu software. Cometiste tres errores demasiado graves en diseño de software que cometen mucho los principiantes.
+
+1. NestJS es un framework completo que depende mucho de decoradores de `typescript` lo cual alarga mucho el tiempo de arranque porque hacer `reflection` a través de toda la app es una tarea intensiva de CPU. En un entorno serverless, esto se traduce a tiempos de arranque bastante largos. Con NestJS casi que por cuestiones de eficiencia, estás obligado a usar un EC2.
+
+2. Las lambdas de `AWS` son una tecnología de tipo FaaS, es decir, son una función que debe hacer una sola tarea, más parecido a un endpoint. Hospedar una aplicación de backend entera en una lambda de AWS es catastrófico porque AWS va a crear una instancia de tu lambda por cada petición entrante.
+
+3. Los entornos serverless con varias instancias no deben conectarse directamente a la base de datos. Esto debido a que cada instancia de tu backend es independiente y usan un cliente diferente de `Prisma ORM`. Cada ejecución de la lambda hará que se habran varias conexiones a la base de datos, sin embargo, Postgres tiene un límite de conexiones y no hospedará las conexiones que excedan el límite, esto a nivel de red se traduce como un timeout haciendo fetching del pool de conexiones de postgres. Se puede evitar usando un pooler como `AWS RDS Proxy`.
+
+Estos errores te los pudiste haber evitado si hubieras pensado primero en la infraestructura antes de diseñar el resto de la aplicación, de haber sabido que tu app iba a ejecutarse en un entorno serverless, pudiste haber creado endpoints atómicos y desplegar cada uno en lambdas.
+
+Un correcto planteamiento de infraestructura implica conocer las limitaciones del entorno donde se va a desplegar el sistema, el presupuesto destinado a este, las necesidades especiales que podría tener la aplicación y conocer bien el proveedor de la nube.
+
+**Ojo:** no es necesario que de una vez plantees los servicios en la nube que usará tu app, eso irá al final. Este paso solo comprende entender el entorno y sus limitaciones.
+
+### Base de datos
+
+El planteamiento de la base de datos es fundamental hacerlo pronto, porque por un lado, te da un entendimiento de cómo funciona el negocio, y por otro lado, puedes identificar la estructura de datos.
+
+Este paso no solo consta de entender cómo va a ser la estructura, también se deben comprender los desafíos que enfrentará la aplicación, y entre las soluciones, podemos escoger lo que mejor vaya acorde a la situación.
+
+Por ejemplo, si la aplicación es de mensajería, quizás lo más adecuado sea una base de datos no relacional como `mongodb`, esto debido a la baja complejidad de lecturas MongoDB puede recibir flujos de datos continuos de forma más eficiente.
+
+Para un sistema POS, lo más adecuado es usar una base de datos relacional, porque al ser ventas que se conectan con productos y stock. La complejidad de las lecturas se vuelve alta, esto para una base de datos como MongoDB es más difícil de manejar, porque si bien el aggregation pipeline de mongodb le da la flexibilidad para hacer lookup de los datos con otra colecciones, se enfrenta a un problema de rendimiento al hacer más esfuerzo por unir documentos y a un problema de memoria al incrustar documentos enteros BSON en el resultado (Postgres une columnas en memoria de forma super compacta).
+
+### Backend / Frontend
+
+Estos dos comparten una filosofía parecida para el diseño de cada uno. Pues los dos se enfrentan al mismo problema.
+
+**¿Debería priorizar el rendimiento o la productividad?**
+
+La respuesta siempre ha sido "depende", porque si el rendimiento no importara en ningún negocio, entonces todos usaríamos Python para el backend y React para el frontend. O en el caso contrario, si no importara la productividad, entonces todos usaríamos Rust para el backend y Javascrit Vanilla para el frontend.
+
+- El rendimiento prioriza la velocidad de respuesta y la calidad de software en nuestro sistema.
+- La productividad prioriza qué tan rápido podríamos desarrollar dicho sistema.
+
+Es importante identificar lo siguiente para decidir cual de los dos priorizar:
+
+1. Plazos de entrega: si tenemos stakeholders en nuestro producto, debemos identificar un plazo para los entregables dirigidos a estos interesados.
+2. Conocimientos de nuestro equipo: es importante conocer las capacidades de nuestro equipo, si los plazos de entrega son ajustados y nuestro equipo maneja `Java`, no es momento para probar otras tecnologías que vi en tendencia.
+3. Presupuesto: ¿Qué tanto presupuesto de infraestructure consume el sistema? ¿Qué tanto consume el equipo de desarrollo? Son preguntas que nos debemos de hacer antes de escoger las tecnologías para el backend y el frontend.
+
+### El problema de la sobre-ingeniería
+
+Si bien hay situaciones donde la balanza se inclina por priozar el rendimiento. Por ejemplo, plazos generosos, expectativas de calidad altísimas, inversión grande, etc. La sobreingeniería sigue existiendo, y no todo software que prioriza el rendimiento debe de estar compuesto por microservicios, ser event-driven e implementar patrón hexagonal.
+
+Un frontend puede empezar a tener micro-frontends cuando el ciclo de CI/CD es el cuello de botella entre cada release al ser el monolito tan grande que necesite dividirse en partes más pequeñas para optimizar los tiempos de entrega.
+
+El backend puede tener micro-servicios si el monolito ralentiza el ciclo de CI/CD o si se beneficia de las características de otro lenguaje de programación, por ejemplo, un microservicio de analíticas con Python usando numpy y pandas. 
+
+Diseñar un sistema enfocado al rendimiento implica usar las tecnologías y herramientas que garantizan un rendimiento excelente (ojo, no el mejor, ni uno perfecto), sacrificando algo de tiempo de desarrollo.
+
+### El problema de la sobre-deuda técnica
+
+Por otro lado, en situaciones donde la situación tira más por el lado de la productividad. Por ejemplo, plazos cortos, poca inversión, salida inmediata a producción, etc. Existe la deuda técnica, la cual es aceptable hasta que se acumula demasiado.
+
+Cuando no se paga la deuda técnica, las consecuencias son bastante graves, por ejemplo, los costos son excesivamente elevados por ineficiencia del sistema y los bugs se vuelven rutina.
+
+La productividad puede ser priorizada sin necesidad de tirar a la basura la arquitectura del código y las buenas prácticas. Un sistema enfocado a la productividad es aquel donde las tecnologías y las herramientas permiten un tiempo de desarrollo más corto, sacrificando algo de rendimiento. Es muy diferente a hacer las cosas mal como cuando se tiene sobre-deuda técnica
+
+## Dayvent
+
+{/* Añadir aquí descripción corta de cómo era el contexto, presupuesto, stakeholders, equipo de trabajo */}
+
+### Infraestructura
+
+{/* Describir por qué escogí GCP y cómo se ajusta a las necesidades del software */}
+
+### Bases de datos
+
+{/* Describir cómo estructuré por encima la base de datos, por qué escogí particionado por tenant en casos excepcionales, y cómo manejo las analíticas con una db de big data (clickhouse) */}
+
+### Backend / Frontend
+
+{/* Describir por qué escogí Go (enfocado a rendimiento), cómo se prestó la situación a diseñar enfocado en rendimiento */}
+
+## Conclusiones
+
+{/* Cómo se evita la sobreingeniería, la sobre-deuda, y nociones generales de diseño de software */}
+
+## Fuentes
+
+{/* Algunas fuentes que validen los datos */}

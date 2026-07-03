@@ -10,9 +10,26 @@ import cloudflare from "@astrojs/cloudflare";
 
 import mdx from "@astrojs/mdx";
 
+import { unified } from "@astrojs/markdown-remark";
+import rehypeExternalLinks from "rehype-external-links";
+
 // https://astro.build/config
 export default defineConfig({
   integrations: [icon(), react(), mdx()],
+
+  markdown: {
+    processor: unified({
+      rehypePlugins: [
+        [
+          rehypeExternalLinks,
+          {
+            target: "_blank",
+            rel: ["noopener", "noreferrer"],
+          },
+        ],
+      ],
+    }),
+  },
 
   vite: {
     plugins: [tailwindcss()],

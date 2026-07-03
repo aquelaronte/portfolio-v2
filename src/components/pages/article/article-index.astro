@@ -27,22 +27,56 @@ const items = toc.map((heading) => {
 });
 ---
 
-<aside class="sticky top-25">
+<aside class="sticky top-30">
   <div
-    class="border-foreground/10 bg-foreground/5 rounded-xl border px-4.5 py-4"
+    class="border-foreground/10 bg-foreground/5 flex max-h-[calc(100vh-12rem)] flex-col rounded-xl border px-4.5 py-4"
   >
-    <div class="text-primary mb-3.5 text-xs tracking-widest">&gt; index</div>
+    <div class="text-primary mb-3.5 shrink-0 text-xs tracking-widest">
+      &gt; índice
+    </div>
 
-    {
-      items.map((item) => (
-        <ArticleIndexItem
-          href={`#${item.slug}`}
-          label={item.label}
-          tabLevel={item.tabLevel}
-        >
-          {item.text}
-        </ArticleIndexItem>
-      ))
-    }
+    <div class="index-scroll -mr-2 min-h-0 overflow-y-auto pr-2">
+      {
+        items.map((item) => (
+          <ArticleIndexItem
+            href={`#${item.slug}`}
+            label={item.label}
+            tabLevel={item.tabLevel}
+          >
+            {item.text}
+          </ArticleIndexItem>
+        ))
+      }
+    </div>
   </div>
 </aside>
+
+<style>
+  @reference "../../../styles/global.css";
+
+  .index-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(
+        in oklab,
+        var(--color-foreground) 18%,
+        transparent
+      )
+      transparent;
+  }
+
+  .index-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .index-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .index-scroll::-webkit-scrollbar-thumb {
+    @apply bg-foreground/15 rounded-full;
+  }
+
+  .index-scroll::-webkit-scrollbar-thumb:hover {
+    @apply bg-foreground/25;
+  }
+</style>
