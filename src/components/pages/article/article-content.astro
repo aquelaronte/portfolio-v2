@@ -59,7 +59,7 @@ const { Content } = await render(article);
 
   <!-- metadata -->
   <div
-    class="text-foreground/40 border-b-foreground/10 mb-9 flex items-center gap-4 border-b pb-6.5 text-xs"
+    class="text-foreground/80 border-b-foreground/10 mb-9 flex items-center gap-4 border-b pb-6.5 text-xs"
     transition:name={`article-meta-${article.id}`}
   >
     <!-- Date -->
@@ -234,6 +234,73 @@ const { Content } = await render(article);
 
   .article-content :global(.code-block[data-copied] .code-block__icon--check) {
     display: inline-block;
+  }
+
+  /* --- Mermaid diagrams (pan + zoom canvas) --- */
+  .article-content :global(.mermaid-block) {
+    @apply border-foreground/10 bg-foreground/5 rounded-xl border;
+    position: relative;
+    margin: 24px 0;
+    overflow: hidden;
+  }
+
+  .article-content :global(.mermaid-viewport) {
+    height: clamp(260px, 46vh, 460px);
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .article-content :global(.mermaid-viewport.is-grabbing) {
+    cursor: grabbing;
+  }
+
+  /* Transformed by JS (translate + scale); origin at top-left for predictable math. */
+  .article-content :global(.mermaid-canvas) {
+    transform-origin: 0 0;
+    width: max-content;
+    will-change: transform;
+  }
+
+  /*
+   * The article's global `* { font-size: 1rem; line-height: 1.78 }` also hits the
+   * SVG label text / foreignObject divs, inflating them past the 13px Mermaid measured
+   * the node boxes with — which clips the text. Reset the subtree so its text follows
+   * Mermaid's own sizing (measured == rendered).
+   */
+  .article-content :global(.mermaid-block svg) {
+    font-size: 13px;
+  }
+
+  .article-content :global(.mermaid-block svg *),
+  .article-content :global(.mermaid-block foreignObject *) {
+    font-size: inherit;
+    line-height: normal;
+  }
+
+  .article-content :global(.mermaid-controls) {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 4px;
+  }
+
+  .article-content :global(.mermaid-ctrl) {
+    @apply border-foreground/10 bg-background/70 text-foreground/60 hover:text-foreground hover:border-foreground/25 cursor-pointer rounded-md border transition-colors;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    backdrop-filter: blur(6px);
+  }
+
+  .article-content :global(.mermaid-ctrl svg) {
+    width: 15px;
+    height: 15px;
   }
 
   /* Line numbers: Shiki wraps every line in <span class="line">. */

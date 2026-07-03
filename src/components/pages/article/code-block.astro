@@ -48,9 +48,48 @@ const LANG_LABELS: Record<string, string> = {
 };
 
 const label = LANG_LABELS[language.toLowerCase()] ?? language.toUpperCase();
+
+// `mermaid` fences are rendered as diagrams client-side instead of highlighted code.
+const isMermaid = language.toLowerCase() === "mermaid";
 ---
 
-<figure class="code-block" data-language={language}>
+{
+  isMermaid ? (
+    <figure class="mermaid-block" data-mermaid>
+      {/* Raw diagram source (hidden). The client reads its textContent. */}
+      <div class="mermaid-src" hidden>
+        <slot />
+      </div>
+
+      <div class="mermaid-viewport">
+        <div class="mermaid-canvas" role="img" aria-label="Diagrama" />
+      </div>
+
+      <div class="mermaid-controls" hidden aria-hidden="true">
+        <button type="button" class="mermaid-ctrl" data-zoom-out aria-label="Alejar">
+          <Icon name="lucide:minus" />
+        </button>
+        <button type="button" class="mermaid-ctrl" data-zoom-reset aria-label="Ajustar">
+          <Icon name="lucide:maximize" />
+        </button>
+        <button type="button" class="mermaid-ctrl" data-zoom-in aria-label="Acercar">
+          <Icon name="lucide:plus" />
+        </button>
+      </div>
+
+      <noscript>
+        <pre
+          class={className}
+          style={style}
+          data-language={language}
+          {...rest}
+        >
+          <slot />
+        </pre>
+      </noscript>
+    </figure>
+  ) : (
+    <figure class="code-block" data-language={language}>
   <figcaption class="code-block__bar">
     <span class="code-block__lang">{label}</span>
 
@@ -74,8 +113,10 @@ const label = LANG_LABELS[language.toLowerCase()] ?? language.toUpperCase();
     </button>
   </figcaption>
 
-  <pre class={className} style={style} data-language={language} {...rest}><slot /></pre>
-</figure>
+      <pre class={className} style={style} data-language={language} {...rest}><slot /></pre>
+    </figure>
+  )
+}
 
 <script>
   function bindCopyButtons() {
@@ -105,4 +146,195 @@ const label = LANG_LABELS[language.toLowerCase()] ?? language.toUpperCase();
   }
 
   document.addEventListener("astro:page-load", bindCopyButtons);
+</script>
+
+<script>
+  // Render `mermaid` fences as diagrams. Mermaid is heavy, so it is loaded lazily
+  // and only on pages that actually contain a diagram.
+  let mermaidReady: Promise<typeof import("mermaid").default> | null = null;
+
+  function loadMermaid() {
+    if (!mermaidReady) {
+      mermaidReady = import("mermaid").then(({ default: mermaid }) => {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: "base",
+          fontFamily: "'Geist Mono', ui-monospace, monospace",
+          // Render at natural size; we handle fitting via pan/zoom ourselves.
+          flowchart: { useMaxWidth: false },
+          sequence: { useMaxWidth: false },
+          themeVariables: {
+            background: "#030708",
+            primaryColor: "#0d1417",
+            primaryBorderColor: "#f6a1c6",
+            primaryTextColor: "#ffffff",
+            secondaryColor: "#121a1d",
+            tertiaryColor: "#0a1113",
+            lineColor: "rgba(255,255,255,0.4)",
+            textColor: "#ffffff",
+            fontSize: "13px",
+          },
+        });
+        return mermaid;
+      });
+    }
+    return mermaidReady;
+  }
+
+  // Mermaid measures label widths to size the node boxes. If it runs before the
+  // Geist Mono web font is ready, it measures with fallback metrics and the text
+  // ends up clipped/overflowing. Wait for the font first.
+  async function waitForFont() {
+    if (!("fonts" in document)) return;
+    try {
+      await Promise.all([
+        document.fonts.load("13px 'Geist Mono'"),
+        document.fonts.load("600 13px 'Geist Mono'"),
+      ]);
+      await document.fonts.ready;
+    } catch {
+      /* font loading unsupported — proceed anyway */
+    }
+  }
+
+  /** Attach drag-to-pan + wheel/buttons-to-zoom to a rendered diagram. */
+  function setupPanZoom(block: HTMLElement) {
+    const viewport = block.querySelector<HTMLElement>(".mermaid-viewport");
+    const canvas = block.querySelector<HTMLElement>(".mermaid-canvas");
+    const svg = canvas?.querySelector("svg");
+    const controls = block.querySelector<HTMLElement>(".mermaid-controls");
+    if (!viewport || !canvas || !svg) return;
+
+    // Let CSS control the box; strip mermaid's inline sizing so we can scale freely.
+    const natW = svg.viewBox?.baseVal?.width || svg.getBoundingClientRect().width;
+    const natH = svg.viewBox?.baseVal?.height || svg.getBoundingClientRect().height;
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+    svg.style.width = natW + "px";
+    svg.style.height = natH + "px";
+    svg.style.maxWidth = "none";
+
+    let scale = 1;
+    let tx = 0;
+    let ty = 0;
+    const MIN = 0.2;
+    const MAX = 4;
+
+    const apply = () => {
+      canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    };
+
+    const fit = () => {
+      const vw = viewport.clientWidth;
+      const vh = viewport.clientHeight;
+      scale = Math.min(vw / natW, vh / natH, 1);
+      tx = (vw - natW * scale) / 2;
+      ty = (vh - natH * scale) / 2;
+      apply();
+    };
+
+    const zoomAt = (factor: number, cx: number, cy: number) => {
+      const next = Math.min(MAX, Math.max(MIN, scale * factor));
+      const k = next / scale;
+      // keep the point under the cursor fixed
+      tx = cx - k * (cx - tx);
+      ty = cy - k * (cy - ty);
+      scale = next;
+      apply();
+    };
+
+    viewport.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        const rect = viewport.getBoundingClientRect();
+        zoomAt(
+          e.deltaY < 0 ? 1.12 : 1 / 1.12,
+          e.clientX - rect.left,
+          e.clientY - rect.top,
+        );
+      },
+      { passive: false },
+    );
+
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    viewport.addEventListener("pointerdown", (e) => {
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      viewport.setPointerCapture(e.pointerId);
+      viewport.classList.add("is-grabbing");
+    });
+    viewport.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      tx += e.clientX - lastX;
+      ty += e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      apply();
+    });
+    const endDrag = () => {
+      dragging = false;
+      viewport.classList.remove("is-grabbing");
+    };
+    viewport.addEventListener("pointerup", endDrag);
+    viewport.addEventListener("pointercancel", endDrag);
+    viewport.addEventListener("pointerleave", endDrag);
+
+    const center = () => ({
+      cx: viewport.clientWidth / 2,
+      cy: viewport.clientHeight / 2,
+    });
+    controls
+      ?.querySelector("[data-zoom-in]")
+      ?.addEventListener("click", () => {
+        const { cx, cy } = center();
+        zoomAt(1.25, cx, cy);
+      });
+    controls
+      ?.querySelector("[data-zoom-out]")
+      ?.addEventListener("click", () => {
+        const { cx, cy } = center();
+        zoomAt(1 / 1.25, cx, cy);
+      });
+    controls
+      ?.querySelector("[data-zoom-reset]")
+      ?.addEventListener("click", fit);
+
+    if (controls) controls.hidden = false;
+    fit();
+  }
+
+  async function renderMermaid() {
+    const blocks = document.querySelectorAll<HTMLElement>("[data-mermaid]");
+    if (!blocks.length) return;
+
+    const [mermaid] = await Promise.all([loadMermaid(), waitForFont()]);
+
+    for (const block of blocks) {
+      if (block.dataset.rendered === "true") continue;
+      const source = block
+        .querySelector(".mermaid-src")
+        ?.textContent?.trim();
+      const canvas = block.querySelector<HTMLElement>(".mermaid-canvas");
+      if (!source || !canvas) continue;
+
+      const id = "mermaid-" + Math.random().toString(36).slice(2, 10);
+      try {
+        const { svg, bindFunctions } = await mermaid.render(id, source);
+        canvas.innerHTML = svg;
+        bindFunctions?.(canvas);
+        block.dataset.rendered = "true";
+        setupPanZoom(block);
+      } catch (err) {
+        console.error("Mermaid render failed:", err);
+      }
+    }
+  }
+
+  document.addEventListener("astro:page-load", renderMermaid);
 </script>

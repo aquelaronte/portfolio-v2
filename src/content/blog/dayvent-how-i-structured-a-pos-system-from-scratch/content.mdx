@@ -74,6 +74,21 @@ Lo que sucedió es que no concebiste la infraestructura al momento de diseñar. 
 2. **Las lambdas de AWS son FaaS**: están pensadas para hacer una sola tarea, más parecidas a un endpoint. AWS reutiliza el mismo entorno de ejecución para peticiones que llegan de forma secuencial, pero crea una instancia nueva por cada petición **concurrente**. Bajo carga (justo la hora pico de un POS) eso se traduce en decenas de instancias en paralelo, cada una pagando su propio arranque en frío. Hospedar una aplicación de backend entera ahí dentro es catastrófico.
 3. **Los entornos serverless con varias instancias no deben conectarse directamente a la base de datos.** Cada instancia es independiente y usa su propio cliente de `Prisma ORM`, así que cada ejecución abre nuevas conexiones. Postgres tiene un límite de conexiones y rechaza las que lo exceden; a nivel de red eso se traduce en timeouts esperando el pool de conexiones. La solución es un pooler de conexiones externo, **pero ojo con la herramienta**: `AWS RDS Proxy` parece la respuesta obvia y no lo es junto a Prisma. Por la forma en que RDS Proxy *fija* (pins) las conexiones al cliente, no aporta ningún beneficio de pooling cuando se usa con Prisma Client (así lo documenta la [propia Prisma](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections#aws-rds-proxy)). Ahí la salida real es un pooler pensado para este caso (por ejemplo `Prisma Accelerate` o `PgBouncer` en modo transacción), y no RDS Proxy.
 
+Visto en conjunto, la trampa se ve así: cada petición concurrente levanta su propia instancia, y cada instancia abre sus propias conexiones contra una base de datos con un límite fijo.
+
+```mermaid
+flowchart LR
+    C["Clientes en hora pico"] --> GW["API Gateway"]
+    GW --> L1["Lambda #1"]
+    GW --> L2["Lambda #2"]
+    GW --> L3["Lambda #N"]
+    L1 --> P[("Prisma Client")]
+    L2 --> P
+    L3 --> P
+    P --> DB[("PostgreSQL RDS<br/>límite de conexiones")]
+    DB -. excede el pool .-> T["Timeouts"]
+```
+
 Todos esos errores se pudieron evitar pensando primero en la infraestructura. De haber sabido que la app iba a ejecutarse en un entorno serverless, habrías creado endpoints atómicos (probablemente con Express.js o Hono si tu expertise es Javascript) y desplegado cada uno como una lambda.
 
 Un correcto planteamiento de infraestructura implica conocer las limitaciones del entorno, el presupuesto disponible, las necesidades especiales de la aplicación y el proveedor de nube que vas a usar.
@@ -145,6 +160,19 @@ go asynctask.Execute(ctx.Background)
 
 Sin embargo, Cloud Run reserva una porción de memoria por cada petición entrante. Después de responderle al cliente, esa porción de CPU y RAM se vuelve a ajustar. Si se ejecuta una función asíncrona, Go se queda sin la memoria para la Goroutine. En este escenario, lo indicado es usar una cola la cual abre una petición HTTP al backend y resuelve dicha llamada asíncrona, manejando ritmo de ejecución, concurrencia y reintentos.
 
+```mermaid
+sequenceDiagram
+    participant U as Cliente
+    participant CR as Cloud Run (Go)
+    participant Q as Cloud Tasks
+    U->>CR: POST /venta
+    CR-->>U: 200 OK (respuesta inmediata)
+    CR->>Q: encola tarea asíncrona
+    Note over Q: controla ritmo,<br/>concurrencia y reintentos
+    Q->>CR: POST /tasks/procesar (nueva petición)
+    CR->>CR: procesa con memoria fresca
+```
+
 ### Base de datos: Postgres, particionado por tenant y ClickHouse
 
 Siguiendo el marco, para el núcleo transacional (ventas, productos, stock) la decisión fue **PostgreSQL**: las lecturas son relacionalmente complejas y Postgres las resuelve de forma compacta y rápida.
@@ -152,6 +180,18 @@ Siguiendo el marco, para el núcleo transacional (ventas, productos, stock) la d
 Como Dayvent es multi-tenant, el modelo por defecto es sencillo: **tablas compartidas con un `tenant_id`**. Es la opción más productiva y suficiente para la gran mayoría de restaurantes. Pero no la apliqué así sin más: **particioné por tenant solo en casos excepcionales, cuando un cliente "caliente" (con volumen de consultas muy alto) empieza a degradar el rendimiento de los demás**. Particionar tiene un costo operativo, así que lo pago únicamente donde el rendimiento lo justifica. Esto es exactamente el marco en cuestión: la productividad se trata por defecto, y el rendimiento se aplica donde el tráfico lo requiere.
 
 Las analíticas son un caso aparte. Meter agregaciones pesadas (reportes, tendencias de ventas, dashboards) sobre la misma base transaccional castigaría al POS justo cuando más rápido debe ir. Por eso separé las cargas: el flujo OLTP vive en Postgres, y las consultas analíticas (OLAP) las resuelvo con **ClickHouse**, una base de datos columnar orientada a big data. Así, el dueño del restaurante puede ver reportes grandes sin afectar al flujo de caja para sus empleados.
+
+Juntando todas las capas, así queda la arquitectura de Dayvent: cada decisión (Cloud Run, Cloud Tasks, Postgres, ClickHouse) ocupa el lugar donde su fortaleza importa.
+
+```mermaid
+flowchart TD
+    POS["POS / Frontend React"] -->|ventas en tiempo real| CR["Cloud Run · Go<br/>autoescalado, escala a cero"]
+    CR -->|OLTP: lecturas y escrituras| PG[("PostgreSQL<br/>tablas por tenant_id")]
+    CR -->|trabajo asíncrono| Q["Cloud Tasks"]
+    Q -->|reintenta vía HTTP| CR
+    PG -->|replicación analítica| CH[("ClickHouse<br/>columnar · OLAP")]
+    DASH["Dashboards y reportes"] -->|consultas pesadas| CH
+```
 
 ### Backend / Frontend: Go y React
 
