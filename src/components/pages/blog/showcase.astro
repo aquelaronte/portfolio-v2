@@ -19,6 +19,6 @@ const [featured, ...rest] = articles;
 </Separator>
 <ArticleCard article={featured} featured />
 
-<div class="grid grid-cols-3">
+<div class="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
   {rest.map((article) => <ArticleCard article={article} />)}
 </div>

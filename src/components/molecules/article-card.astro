@@ -16,16 +16,21 @@ const { article, featured = false } = Astro.props;
   href={`/blog/${article.id}`}
   class:list={[
     "group border-foreground/10 bg-foreground/5 hover:border-primary/40 hover:shadow-primary/30 mb-6.5 grid cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-[0_0_30px_-5px]",
-    featured ? "grid-cols-[1.05fr_1fr]" : "grid-cols-1",
+    featured ? "grid-cols-1 md:grid-cols-[1.05fr_1fr]" : "grid-cols-1",
   ]}
 >
   <Image
     src={article.data.cover.url}
     alt={article.data.cover.alt}
     transition:name={`article-cover-${article.id}`}
-    class="border-r-foreground/10 relative flex h-full min-h-85 items-center justify-center border-r"
+    class:list={[
+      "border-foreground/10 relative w-full border-b object-cover",
+      featured
+        ? "max-h-56 min-h-56 md:h-full md:max-h-none md:min-h-85 md:border-r md:border-b-0"
+        : "max-h-56 min-h-56",
+    ]}
   />
-  <div class="flex flex-col justify-center px-9 py-9.5">
+  <div class="flex flex-col justify-center px-6 py-7 sm:px-9 sm:py-9.5">
     <div
       class="mb-4 flex flex-wrap gap-2"
       transition:name={`article-tags-${article.id}`}

@@ -87,6 +87,14 @@ const items = toc.map((heading) => {
     display: block;
   }
 
+  /* Below lg the sticky sidebar is hidden (no room), so surface the inline index
+     after the cover regardless of reading mode. */
+  @media (max-width: 1023px) {
+    .article-index-inline {
+      display: block;
+    }
+  }
+
   /* Full-width vertical list (same as the sidebar, just spanning the content width). */
   .index-inline-grid {
     display: block;
