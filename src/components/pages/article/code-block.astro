@@ -1,0 +1,108 @@
+---
+import { Icon } from "astro-icon/components";
+
+/**
+ * Custom renderer for fenced code blocks. Astro's Shiki highlighting turns each
+ * block into a `<pre class="astro-code" data-language="...">` with `<span class="line">`
+ * children. We keep that exact output (github-dark + semantic highlighting) and just
+ * wrap it with a top bar (language label + copy button). Line numbers are added in CSS.
+ */
+const {
+  class: className,
+  style,
+  "data-language": _dataLanguage,
+  ...rest
+} = Astro.props;
+
+const language = (_dataLanguage as string | undefined) ?? "text";
+
+const LANG_LABELS: Record<string, string> = {
+  ts: "TypeScript",
+  typescript: "TypeScript",
+  tsx: "TSX",
+  js: "JavaScript",
+  javascript: "JavaScript",
+  jsx: "JSX",
+  go: "Go",
+  py: "Python",
+  python: "Python",
+  rs: "Rust",
+  rust: "Rust",
+  java: "Java",
+  sh: "Shell",
+  bash: "Bash",
+  shell: "Shell",
+  zsh: "Zsh",
+  json: "JSON",
+  yaml: "YAML",
+  yml: "YAML",
+  toml: "TOML",
+  sql: "SQL",
+  html: "HTML",
+  css: "CSS",
+  md: "Markdown",
+  mdx: "MDX",
+  dockerfile: "Dockerfile",
+  text: "Text",
+  plaintext: "Text",
+};
+
+const label = LANG_LABELS[language.toLowerCase()] ?? language.toUpperCase();
+---
+
+<figure class="code-block" data-language={language}>
+  <figcaption class="code-block__bar">
+    <span class="code-block__lang">{label}</span>
+
+    <button
+      type="button"
+      class="code-block__copy"
+      data-copy
+      aria-label="Copiar código"
+    >
+      <Icon name="lucide:copy" class="code-block__icon code-block__icon--copy" />
+      <Icon
+        name="lucide:check"
+        class="code-block__icon code-block__icon--check"
+      />
+      <span class="code-block__copy-text code-block__copy-text--idle"
+        >Copiar</span
+      >
+      <span class="code-block__copy-text code-block__copy-text--done"
+        >Copiado</span
+      >
+    </button>
+  </figcaption>
+
+  <pre class={className} style={style} data-language={language} {...rest}><slot /></pre>
+</figure>
+
+<script>
+  function bindCopyButtons() {
+    document
+      .querySelectorAll<HTMLButtonElement>(".code-block__copy")
+      .forEach((btn) => {
+        if (btn.dataset.bound === "true") return;
+        btn.dataset.bound = "true";
+
+        btn.addEventListener("click", async () => {
+          const block = btn.closest<HTMLElement>(".code-block");
+          const code = block?.querySelector("pre code");
+          if (!block || !code) return;
+
+          try {
+            await navigator.clipboard.writeText(code.textContent ?? "");
+            block.setAttribute("data-copied", "true");
+            window.setTimeout(
+              () => block.removeAttribute("data-copied"),
+              1600,
+            );
+          } catch {
+            /* clipboard unavailable — ignore */
+          }
+        });
+      });
+  }
+
+  document.addEventListener("astro:page-load", bindCopyButtons);
+</script>

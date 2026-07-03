@@ -4,9 +4,14 @@ import ArticleIndexItem from "./article-index-item.astro";
 
 interface Props {
   headings: MarkdownHeading[];
+  /**
+   * "sidebar" (default) renders the sticky right-column index used in regular mode.
+   * "inline" renders a full-width card meant to sit right after the cover in immersive mode.
+   */
+  variant?: "sidebar" | "inline";
 }
 
-const { headings } = Astro.props;
+const { headings, variant = "sidebar" } = Astro.props;
 
 // Only surface section headings (skip the page title h1 and very deep ones).
 const toc = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
@@ -27,32 +32,65 @@ const items = toc.map((heading) => {
 });
 ---
 
-<aside class="sticky top-30">
-  <div
-    class="border-foreground/10 bg-foreground/5 flex max-h-[calc(100vh-12rem)] flex-col rounded-xl border px-4.5 py-4"
-  >
-    <div class="text-primary mb-3.5 shrink-0 text-xs tracking-widest">
-      &gt; índice
-    </div>
+{
+  variant === "inline" ? (
+    <nav class="article-index-inline">
+      <div class="border-foreground/10 bg-foreground/5 rounded-xl border px-5 py-4.5">
+        <div class="text-primary mb-3.5 text-xs tracking-widest">&gt; índice</div>
 
-    <div class="index-scroll -mr-2 min-h-0 overflow-y-auto pr-2">
-      {
-        items.map((item) => (
-          <ArticleIndexItem
-            href={`#${item.slug}`}
-            label={item.label}
-            tabLevel={item.tabLevel}
-          >
-            {item.text}
-          </ArticleIndexItem>
-        ))
-      }
-    </div>
-  </div>
-</aside>
+        <div class="index-inline-grid">
+          {items.map((item) => (
+            <ArticleIndexItem
+              href={`#${item.slug}`}
+              label={item.label}
+              tabLevel={item.tabLevel}
+            >
+              {item.text}
+            </ArticleIndexItem>
+          ))}
+        </div>
+      </div>
+    </nav>
+  ) : (
+    <aside class="sticky top-30">
+      <div class="border-foreground/10 bg-foreground/5 flex max-h-[calc(100vh-12rem)] flex-col rounded-xl border px-4.5 py-4">
+        <div class="text-primary mb-3.5 shrink-0 text-xs tracking-widest">
+          &gt; índice
+        </div>
+
+        <div class="index-scroll -mr-2 min-h-0 overflow-y-auto pr-2">
+          {items.map((item) => (
+            <ArticleIndexItem
+              href={`#${item.slug}`}
+              label={item.label}
+              tabLevel={item.tabLevel}
+            >
+              {item.text}
+            </ArticleIndexItem>
+          ))}
+        </div>
+      </div>
+    </aside>
+  )
+}
 
 <style>
   @reference "../../../styles/global.css";
+
+  /* Inline (immersive) index: hidden by default, revealed only in immersive mode. */
+  .article-index-inline {
+    display: none;
+    margin-bottom: 40px;
+  }
+
+  :global(html[data-mode="immersive"]) .article-index-inline {
+    display: block;
+  }
+
+  /* Full-width vertical list (same as the sidebar, just spanning the content width). */
+  .index-inline-grid {
+    display: block;
+  }
 
   .index-scroll {
     scrollbar-width: thin;

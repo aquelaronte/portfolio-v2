@@ -19,7 +19,7 @@ const { headings } = await render(article);
   <div
     class="article-grid relative z-10 mx-auto grid max-w-295 grid-cols-[minmax(0px,1fr)_240px] items-start gap-14 px-8 pt-13 pb-35"
   >
-    <ArticleContent article={article} />
+    <ArticleContent article={article} headings={headings} />
     <ArticleIndex headings={headings} />
   </div>
 </BlogLayout>

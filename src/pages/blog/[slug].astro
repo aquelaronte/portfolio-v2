@@ -18,6 +18,7 @@ const { article } = Astro.props;
 
 <MainLayout
   title={article.data.title}
+  description={article.data.description}
   transition:name="root-layout"
   transition:animate={"fade"}
   clientRouter

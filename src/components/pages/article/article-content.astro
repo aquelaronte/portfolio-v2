@@ -1,15 +1,19 @@
 ---
 import Badge from "@/components/atoms/badge.astro";
+import CodeBlock from "@/components/pages/article/code-block.astro";
+import ArticleIndex from "@/components/pages/article/article-index.astro";
 import { formatDate } from "@/lib/helpers/format-date";
 import type { Article } from "@/lib/infrastructure/articles/fetch";
+import type { MarkdownHeading } from "astro";
 import { Image } from "astro:assets";
 import { render } from "astro:content";
 
 interface Props {
   article: Article;
+  headings: MarkdownHeading[];
 }
 
-const { article } = Astro.props;
+const { article, headings } = Astro.props;
 const { Content } = await render(article);
 ---
 
@@ -75,8 +79,11 @@ const { Content } = await render(article);
     transition:name={`article-cover-${article.id}`}
   />
 
+  <!-- Immersive mode: the index moves here, full width, right after the cover. -->
+  <ArticleIndex headings={headings} variant="inline" />
+
   <div class="article-content">
-    <Content />
+    <Content components={{ pre: CodeBlock }} />
   </div>
 </article>
 
@@ -152,6 +159,101 @@ const { Content } = await render(article);
     border: none;
     padding: 0;
     font-size: 14px;
+  }
+
+  /* --- Code block wrapper (top bar + copy button + line numbers) --- */
+  .article-content :global(.code-block) {
+    @apply border-foreground/10 overflow-hidden rounded-xl border;
+    margin: 24px 0;
+  }
+
+  /* The wrapper now owns the frame; the inner <pre> sits flush under the bar. */
+  .article-content :global(.code-block > pre) {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+
+  .article-content :global(.code-block__bar) {
+    @apply bg-foreground/5 border-b-foreground/10 border-b font-mono!;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    line-height: 1;
+  }
+
+  .article-content :global(.code-block__lang) {
+    @apply text-foreground/45;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .article-content :global(.code-block__copy) {
+    @apply text-foreground/45 hover:text-foreground/80 cursor-pointer transition-colors;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    font-family: inherit;
+  }
+
+  .article-content :global(.code-block__icon) {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .article-content :global(.code-block__icon--check) {
+    @apply text-primary;
+    display: none;
+  }
+
+  .article-content :global(.code-block__copy-text--done) {
+    @apply text-primary;
+    display: none;
+  }
+
+  .article-content :global(.code-block[data-copied] .code-block__icon--copy),
+  .article-content
+    :global(.code-block[data-copied] .code-block__copy-text--idle) {
+    display: none;
+  }
+
+  .article-content :global(.code-block[data-copied] .code-block__icon--check),
+  .article-content
+    :global(.code-block[data-copied] .code-block__copy-text--done) {
+    display: inline;
+  }
+
+  .article-content :global(.code-block[data-copied] .code-block__icon--check) {
+    display: inline-block;
+  }
+
+  /* Line numbers: Shiki wraps every line in <span class="line">. */
+  .article-content :global(.code-block > pre code) {
+    counter-reset: line;
+  }
+
+  .article-content :global(.code-block > pre code .line) {
+    counter-increment: line;
+  }
+
+  .article-content :global(.code-block > pre code .line)::before {
+    @apply text-foreground/25;
+    content: counter(line);
+    display: inline-block;
+    width: 1.6rem;
+    margin-right: 1.1rem;
+    text-align: right;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .article-content :global(ul),

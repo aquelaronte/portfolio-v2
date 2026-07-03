@@ -1,7 +1,7 @@
 ---
 title: "Dayvent: Cómo estructuré un sistema POS/ERP desde cero"
 description: "Rendimiento o productividad: esa decisión define la arquitectura de cualquier sistema. Te muestro mi cadena de razonamiento al diseñar Dayvent, un POS/ERP para restaurantes, capa por capa: infraestructura, base de datos y backend."
-date: 2026-07-02
+date: 2026-07-03
 tags: ["Software Engineering", "System Design", "Infrastructure", "Go"]
 estimatedReadingTime: 12
 cover:
@@ -21,9 +21,9 @@ cover:
 
 ## Contexto
 
-Dayvent es un sistema POS para restaurantes que está en crecimiento. Actualmente atraviesa una transición gradual: de ser un software privado para un grupo cerrado de personas, a convertirse en un SaaS de consumo masivo, adoptando clientes nuevos de forma controlada hasta estabilizar las funcionalidades en escenarios reales.
+Dayvent es un sistema POS para restaurantes que está en crecimiento. Actualmente se encuentra en una transición gradual de ser un software privado para un grupo exclusivo de personas, a convertirse en un SaaS de consumo masivo, adoptando clientes nuevos de forma controlada hasta estabilizar las funcionalidades en escenarios reales.
 
-Lo construimos tres socios: uno enfocado en el frontend con React, otro en el backend con Java (aprendiendo Go en el camino) y yo como tech-lead, con manejo de React, Java y Go. Eso importa, porque casi todas las decisiones de arquitectura que voy a contar salen de cruzar tres variables: **el dominio del problema, el presupuesto y las capacidades reales del equipo**.
+Lo construimos tres socios: uno enfocado en el frontend con React, otro en el backend con Java (aprendiendo Go en el camino) y yo como tech-lead, con manejo de React, Java y Go. Es importante tenerlo en cuenta, porque casi todas las decisiones de arquitectura que se verán a continuación, son producto de cruzar tres variables: **el dominio del problema, el presupuesto y las habilidades del equipo**.
 
 Y todas esas decisiones giran alrededor de una sola pregunta.
 
@@ -31,14 +31,16 @@ Y todas esas decisiones giran alrededor de una sola pregunta.
 
 **¿Debería priorizar el rendimiento o la productividad?**
 
-La respuesta siempre ha sido "depende". Si el rendimiento no importara en ningún negocio, todos usaríamos Python para el backend y React para el frontend. Y en el caso contrario, si no importara la productividad, todos escribiríamos el backend en Rust y el frontend en JavaScript vanilla.
+Primero se debe entender la pregunta. Priorizar el rendimiento es construir un software rápido y robusto antes que el desarrollo rápido, y la productividad es priorizar el desarrollo rápido antes que la robustez y rapidez del software.
+
+La respuesta siempre ha sido "depende". Si el rendimiento no importara en ningún negocio, todos usaríamos Node.js para el backend y React para el frontend. Y en el caso contrario, si no importara la productividad, todos escribiríamos el backend en Rust y el frontend en JavaScript vanilla.
 
 - El **rendimiento** prioriza la velocidad de respuesta y la calidad del software.
 - La **productividad** prioriza qué tan rápido podemos desarrollar ese software.
 
-No es una decisión que se toma una sola vez al inicio del proyecto: se toma en cada capa del sistema. Este artículo es, en el fondo, la historia de cómo respondí esa pregunta —una y otra vez— al diseñar Dayvent.
+Es una decisión que se toma en cada capa del sistema, no solo cuando el diseño empieza. Este artículo tratará sobre como respondí esta pregunta una y otra vez al diseñar Dayvent. 
 
-Antes de aterrizarlo en Dayvent, quiero dejar claro el marco con el que razono cada capa. Voy a recorrer las tres fases de diseño por las que pasé:
+Antes de abordar Dayvent, quiero aclarar el marco con el que razono cada capa. Voy a recorrer las tres fases de diseño por las que pasé:
 
 1. Infraestructura
 2. Base de datos
@@ -46,33 +48,33 @@ Antes de aterrizarlo en Dayvent, quiero dejar claro el marco con el que razono c
 
 ## El marco: cómo razono cada capa
 
-Los sistemas POS deben ser rápidos. Un negocio en hora pico, con una fila larga de clientes, no se puede permitir que su sistema POS sea el cuello de botella. Estructurar bien la base de datos, tener buenas prácticas de desarrollo y conocer de diseño de sistemas es clave para lograr alto rendimiento en estos escenarios.
+Los sistemas POS deben ser rápidos. Un negocio en hora pico, con una fila larga de clientes, no se puede permitir que su sistema POS sea el cuello de botella. Estructurar bien la base de datos, tener buenas prácticas de desarrollo y conocer de diseño de sistemas es la clave para lograr alto rendimiento en estos escenarios.
 
-Pero "rápido" no significa "sobreingeniería", y "productivo" no significa "hacer las cosas mal". El marco vive entre esos dos extremos.
+Pero "rápido" no implica que debar haber "sobreingeniería", y "productivo" tampoco que "se deban hacer las cosas mal". El marco vive en esa balanza constantemente.
 
 ### Infraestructura
 
-Antes de proceder con cualquier parte del diseño, debemos pensar primero en qué entorno va a ejecutar nuestro backend, base de datos, frontend y demás servicios.
+Antes de proceder con cualquier parte del diseño, se debe pensar primero en qué entorno va a ejecutar nuestro backend, base de datos, frontend y demás servicios.
 
 Es importante hacerlo desde el primer momento, porque los sistemas que no conciben la infraestructura antes de empezar su diseño terminan limitados al momento de desplegarse. Esta parte viene muy ligada al presupuesto y al contexto donde se desarrolla el sistema.
 
-Déjame mostrarlo con un ejemplo que ilustra por qué esto no es un detalle menor. Supongamos que ya diseñaste y desarrollaste un sistema para una empresa cuya infraestructura está montada en `AWS`. El backend lo hiciste con NestJS, la base de datos con PostgreSQL y el frontend con Next.js. Todo funciona perfecto en tu máquina local, pero la empresa no destinó presupuesto suficiente para pagar un `EC2` para tu backend.
+Déjame mostrarlo con un ejemplo que ilustra por qué esto no es un detalle menor. Supongamos que ya diseñaste y desarrollaste un sistema para una empresa cuya infraestructura está montada en `AWS`. El backend lo hiciste con NestJS + Prisma ORM, la base de datos con PostgreSQL y el frontend con Next.js. Todo funciona perfecto en tu máquina local, pero la empresa no destinó presupuesto suficiente para pagar un `EC2` para tu backend.
 
 Con ese presupuesto limitado, optas por lo siguiente:
 
 1. Despliegas el backend de NestJS en `AWS Lambda` por su naturaleza serverless y lo expones con `AWS API Gateway`, lo cual parece ajustarse al presupuesto.
-2. Creas una instancia de base de datos en `AWS RDS` y conectas el backend directamente usando `Prisma ORM`.
+2. Creas una instancia de base de datos en `AWS RDS` y conectas el backend directamente.
 3. Despliegas el frontend de Next.js en Vercel.
 
-Semanas después, la empresa se queja: les llegó una factura de 3.000 USD. Y ahí te preguntas: *"¿Qué habré hecho mal?"*.
+Semanas después, la empresa se queja: les llegó una factura de $3.000 USD. Y ahí te preguntas: *"¿Qué habré hecho mal?"*.
 
 Lo que sucedió es que no concebiste la infraestructura al momento de diseñar. No pensaste en el presupuesto, ni en el entorno de ejecución, ni en lo que realmente necesita tu software. Cometiste tres errores de diseño muy comunes:
 
-1. **NestJS depende fuertemente de decoradores de TypeScript**, lo cual alarga el arranque porque hacer `reflection` a través de toda la app es una tarea intensiva de CPU. En un entorno serverless, esto se traduce en arranques en frío bastante largos. Con NestJS, casi por eficiencia, estás obligado a usar un EC2.
-2. **Las lambdas de AWS son FaaS**: están pensadas para hacer una sola tarea, más parecidas a un endpoint. Hospedar una aplicación de backend entera en una lambda es catastrófico, porque AWS crea una instancia de tu lambda por cada petición entrante.
-3. **Los entornos serverless con varias instancias no deben conectarse directamente a la base de datos.** Cada instancia es independiente y usa su propio cliente de `Prisma ORM`, así que cada ejecución abre nuevas conexiones. Postgres tiene un límite de conexiones y rechaza las que lo exceden; a nivel de red eso se traduce en timeouts esperando el pool de conexiones. Se evita con un pooler como `AWS RDS Proxy`.
+1. **NestJS depende fuertemente de decoradores de TypeScript**, lo cual alarga el arranque porque hacer `reflection` a través de toda la app es una tarea intensiva de CPU. En un entorno serverless, esto se traduce en arranques en frío bastante largos. Con NestJS, casi por eficiencia, estás obligado a usar un EC2 en aplicaciones monolíticas.
+2. **Las lambdas de AWS son FaaS**: están pensadas para hacer una sola tarea, más parecidas a un endpoint. AWS reutiliza el mismo entorno de ejecución para peticiones que llegan de forma secuencial, pero crea una instancia nueva por cada petición **concurrente**. Bajo carga (justo la hora pico de un POS) eso se traduce en decenas de instancias en paralelo, cada una pagando su propio arranque en frío. Hospedar una aplicación de backend entera ahí dentro es catastrófico.
+3. **Los entornos serverless con varias instancias no deben conectarse directamente a la base de datos.** Cada instancia es independiente y usa su propio cliente de `Prisma ORM`, así que cada ejecución abre nuevas conexiones. Postgres tiene un límite de conexiones y rechaza las que lo exceden; a nivel de red eso se traduce en timeouts esperando el pool de conexiones. La solución es un pooler de conexiones externo, **pero ojo con la herramienta**: `AWS RDS Proxy` parece la respuesta obvia y no lo es junto a Prisma. Por la forma en que RDS Proxy *fija* (pins) las conexiones al cliente, no aporta ningún beneficio de pooling cuando se usa con Prisma Client (así lo documenta la [propia Prisma](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections#aws-rds-proxy)). Ahí la salida real es un pooler pensado para este caso (por ejemplo `Prisma Accelerate` o `PgBouncer` en modo transacción), y no RDS Proxy.
 
-Todos esos errores se pudieron evitar pensando primero en la infraestructura. De haber sabido que la app iba a ejecutarse en un entorno serverless, habrías creado endpoints atómicos y desplegado cada uno como una lambda.
+Todos esos errores se pudieron evitar pensando primero en la infraestructura. De haber sabido que la app iba a ejecutarse en un entorno serverless, habrías creado endpoints atómicos (probablemente con Express.js o Hono si tu expertise es Javascript) y desplegado cada uno como una lambda.
 
 Un correcto planteamiento de infraestructura implica conocer las limitaciones del entorno, el presupuesto disponible, las necesidades especiales de la aplicación y el proveedor de nube que vas a usar.
 
@@ -84,13 +86,13 @@ Plantear la base de datos temprano es fundamental, porque por un lado te da un e
 
 Este paso no solo consiste en definir la estructura: también hay que comprender los desafíos que enfrentará la aplicación para, entre las soluciones posibles, escoger la que mejor se ajuste a la situación.
 
-Por ejemplo, si la aplicación es de mensajería, quizás lo más adecuado sea una base de datos no relacional como `MongoDB`: por la baja complejidad de las lecturas, MongoDB puede recibir flujos continuos de datos de forma muy eficiente.
+Por ejemplo, si la aplicación es de mensajería, quizás lo más adecuado sea una base de datos no relacional como `MongoDB`. Aquí lo importante de esta decisión es el modelo de documentos, que encaja con el dominio del problema "un mensaje es un documento autocontenido (autor, contenido, adjuntos, metadatos) que casi siempre se lee entero y de una sola colección sin `joins`". Ese patrón de escritura pesada y lectura sin relaciones complejas es precisamente el escenario donde MongoDB es útil: sostiene un flujo continuo de inserciones y sirve cada documento sin recomponer datos dispersos en varias tablas.
 
-Para un sistema POS, en cambio, lo más adecuado es una base de datos relacional, porque las ventas se conectan con productos y stock, y la complejidad de las lecturas se vuelve alta. Eso para MongoDB es más difícil de manejar: si bien su aggregation pipeline da flexibilidad para hacer `lookup` entre colecciones, se enfrenta a un problema de rendimiento al unir documentos y a uno de memoria al incrustar documentos BSON enteros en el resultado. Postgres, en cambio, une columnas en memoria de forma mucho más compacta.
+Para un sistema POS, en cambio, lo más adecuado es una base de datos relacional, porque las ventas se conectan con productos y stock, y la complejidad de las lecturas se vuelve alta. Eso para MongoDB es más difícil de manejar: si bien su aggregation pipeline da flexibilidad para hacer `lookup` entre colecciones, se enfrenta a un problema de rendimiento al unir documentos y a uno de memoria al incrustar documentos BSON enteros en el resultado. Postgres, por lo contrario, une columnas en memoria de forma mucho más compacta.
 
 ### Backend / Frontend
 
-Backend y frontend comparten una filosofía parecida a la hora de diseñarlos, porque ambos se enfrentan a la misma pregunta central: **¿rendimiento o productividad?**
+Backend y frontend comparten una filosofía de diseño similar, porque ambos se enfrentan a la misma problemática: **¿rendimiento o productividad?**
 
 Para responderla en cada caso, conviene identificar lo siguiente:
 
@@ -110,7 +112,7 @@ Diseñar un sistema enfocado en rendimiento implica usar las tecnologías y herr
 
 ### El problema de la sobre-deuda técnica
 
-Del otro lado, en situaciones que tiran hacia la productividad —plazos cortos, poca inversión, salida inmediata a producción— existe la deuda técnica, que es aceptable hasta que se acumula demasiado.
+Del otro lado, en situaciones que tiran hacia la productividad (plazos cortos, poca inversión, salida inmediata a producción) existe la deuda técnica, que es aceptable hasta que se acumula demasiado.
 
 Cuando no se paga, las consecuencias son graves: los costos se elevan por la ineficiencia del sistema y los bugs se vuelven rutina.
 
@@ -122,8 +124,9 @@ Con ese marco claro, vamos a lo concreto. ¿Hacia qué lado se inclinó la balan
 
 Hacia el **rendimiento**, y por tres razones muy concretas:
 
-- **El dominio lo exige.** Un POS que se traba en hora pico es un POS que pierde ventas. La velocidad no es un lujo, es un requisito del negocio.
-- **Es nuestro producto, a largo plazo.** No es un encargo puntual que entregamos y olvidamos; es un sistema que queremos sostener y escalar durante años. Invertir en rendimiento hoy es pagar menos deuda mañana.
+- **El dominio lo requiere:** Un POS que se traba en hora pico es un POS que pierde ventas. Para este negocio, la velocidad entra directamente en la lista de requisitos, al mismo nivel que facturar bien.
+- **Presupuesto corto:** El rendimiento no solo se mide por la rapidez en sí, la idea es hacer más con menos recursos. Un entorno serverless es ideal para este caso.
+- **Es nuestro producto a largo plazo:** Queremos sostenerlo y escalarlo durante años, así que trabajar en rendimiento hoy, a futuro implica menos deuda.
 - **Los plazos eran generosos.** No teníamos la presión de una fecha de entrega inmediata, así que podíamos permitirnos sacrificar algo de productividad a cambio de calidad.
 
 Ahora, inclinarse hacia el rendimiento **no** significa activar la sobreingeniería. En cada capa busqué el punto donde el rendimiento fuera excelente sin volverse un monstruo inmanejable para un equipo de tres personas. Así lo razoné.
@@ -132,43 +135,51 @@ Ahora, inclinarse hacia el rendimiento **no** significa activar la sobreingenier
 
 ¿Recuerdas la factura de 3.000 USD del ejemplo de AWS? La raíz del problema era meter un backend pesado y de arranque lento en un modelo FaaS que no estaba hecho para él. Yo quería lo contrario: **autoescalado y pago por uso, pero sin pagar el precio del arranque en frío ni el de un servidor fijo encendido las 24 horas.**
 
-Por eso elegí **Google Cloud Run**. Cloud Run ejecuta el backend como un contenedor con autoescalado: escala a cero cuando no hay tráfico y crece bajo demanda, pero no me obliga a partir la aplicación en funciones atómicas como una lambda. Es el punto medio exacto entre "pagar un EC2 fijo" y "forzar toda la app dentro de un FaaS". Y aquí es donde la decisión del backend y la de infraestructura se refuerzan: como el backend está en Go, que compila a un binario que arranca casi instantáneamente, el arranque en frío —el talón de Aquiles del ejemplo con NestJS— deja de ser un problema.
+Por eso elegí **Google Cloud Run**. Cloud Run es un *CaaS* (Container as a Service), ejecuta el backend como un contenedor con autoescalado: escala a cero cuando no hay tráfico y crece bajo demanda, pero no me obliga a partir la aplicación en funciones atómicas como una lambda. Es el punto medio exacto entre "pagar un EC2 fijo" y "forzar toda la app dentro de un FaaS". Y aquí es donde la decisión del backend y la de infraestructura se refuerzan: como el backend está en Go, que compila a un binario que arranca casi instantáneamente, el arranque en frío (el talón de Aquiles del ejemplo con NestJS) deja de ser un problema.
 
-Para el trabajo asíncrono uso **Cloud Tasks**. En Go es tentador lanzar una goroutine para todo, pero eso concentra la carga dentro de la misma instancia y termina generando throttling y presión de memoria cuando el volumen sube. Delegar esas tareas a una cola gestionada como Cloud Tasks me da control sobre la concurrencia, reintentos y ritmo de ejecución, sin ahogar las instancias que están atendiendo las ventas en tiempo real.
+Para el trabajo asíncono uso una cola con **Cloud Tasks**. En Go lo ideal para ejecutar tareas asíncronas después de responderle al cliente es hacer lo siguiente:
 
-### Base de datos: Postgres, particionado quirúrgico y ClickHouse
+```go
+go asynctask.Execute(ctx.Background)
+```
+
+Sin embargo, Cloud Run reserva una porción de memoria por cada petición entrante. Después de responderle al cliente, esa porción de CPU y RAM se vuelve a ajustar. Si se ejecuta una función asíncrona, Go se queda sin la memoria para la Goroutine. En este escenario, lo indicado es usar una cola la cual abre una petición HTTP al backend y resuelve dicha llamada asíncrona, manejando ritmo de ejecución, concurrencia y reintentos.
+
+### Base de datos: Postgres, particionado por tenant y ClickHouse
 
 Siguiendo el marco, para el núcleo transacional (ventas, productos, stock) la decisión fue **PostgreSQL**: las lecturas son relacionalmente complejas y Postgres las resuelve de forma compacta y rápida.
 
-Como Dayvent es multiinquilino, el modelo por defecto es simple: **tablas compartidas con un `tenant_id`**. Es la opción más productiva y suficiente para la gran mayoría de restaurantes. Pero no la apliqué a ciegas: **particiono por tenant solo en casos excepcionales, cuando un cliente "caliente" —con volumen de consultas muy alto— empieza a degradar el rendimiento de los demás**. Particionar tiene un costo operativo, así que lo pago únicamente donde el rendimiento lo justifica. Esto es exactamente el marco en acción: productividad por defecto, rendimiento donde el dato lo exige.
+Como Dayvent es multi-tenant, el modelo por defecto es sencillo: **tablas compartidas con un `tenant_id`**. Es la opción más productiva y suficiente para la gran mayoría de restaurantes. Pero no la apliqué así sin más: **particioné por tenant solo en casos excepcionales, cuando un cliente "caliente" (con volumen de consultas muy alto) empieza a degradar el rendimiento de los demás**. Particionar tiene un costo operativo, así que lo pago únicamente donde el rendimiento lo justifica. Esto es exactamente el marco en cuestión: la productividad se trata por defecto, y el rendimiento se aplica donde el tráfico lo requiere.
 
-Las analíticas son un caso aparte. Meter agregaciones pesadas (reportes, tendencias de ventas, dashboards) sobre la misma base transaccional castigaría al POS justo cuando más rápido debe ir. Por eso separé las cargas: el flujo OLTP vive en Postgres, y las consultas analíticas (OLAP) las resuelvo con **ClickHouse**, una base de datos columnar orientada a big data. Así, un dueño de restaurante puede correr un reporte pesado sin que la caja registradora del local de al lado sienta el golpe.
+Las analíticas son un caso aparte. Meter agregaciones pesadas (reportes, tendencias de ventas, dashboards) sobre la misma base transaccional castigaría al POS justo cuando más rápido debe ir. Por eso separé las cargas: el flujo OLTP vive en Postgres, y las consultas analíticas (OLAP) las resuelvo con **ClickHouse**, una base de datos columnar orientada a big data. Así, el dueño del restaurante puede ver reportes grandes sin afectar al flujo de caja para sus empleados.
 
-### Backend / Frontend: Go donde importa, React donde conviene
+### Backend / Frontend: Go y React
 
 Aquí es donde la pregunta central se ve más clara, porque la respondí distinto para cada lado.
 
-En el **backend elegí Go**, la apuesta más clara por rendimiento: binarios pequeños de arranque instantáneo (perfectos para Cloud Run), excelente concurrencia y un consumo de recursos bajo. El costo es productividad —Go es más verboso y uno de mis socios venía de Java y lo estaba aprendiendo—, pero con plazos generosos y un producto a largo plazo, ese costo era perfectamente asumible. Como tech-lead que maneja Go, podía sostener la curva de aprendizaje del equipo.
+En el **backend elegí Go**, la apuesta más clara por rendimiento: binarios pequeños de arranque instantáneo (perfectos para Cloud Run), excelente concurrencia y un consumo de recursos bajo. El costo es productividad (Go es más verboso y uno de mis socios venía de Java y lo estaba aprendiendo), pero con plazos generosos y un producto a largo plazo, ese costo era asumible. Siendo un tech-lead que maneja Go, podía asumir tranquilamente la curva de aprendizaje del equipo.
 
-En el **frontend elegí React**, y esta vez me incliné hacia la productividad. El rendimiento del frontend importa, pero no es donde se gana o se pierde una venta en hora pico; ese peso lo carga el backend. React nos da un ecosistema enorme, velocidad de desarrollo y —clave— es la tecnología que el socio de frontend ya dominaba. Forzar aquí una tecnología ultra-optimizada habría sido sacrificar productividad real a cambio de un rendimiento que el dominio no reclamaba: sobreingeniería.
+En el **frontend elegí React**, y esta vez me incliné hacia la productividad. El rendimiento del frontend importa, pero no es el encargado de la concurrencia, ni donde se encuentra el cuello de botella en la hora pico de un restaurante; ese peso lo carga el backend. React nos da un ecosistema enorme, velocidad de desarrollo y, lo más importante, es la tecnología que el socio de frontend ya dominaba. Forzar aquí una tecnología ultra-optimizada (como Vanilla JS o Vue con su vapor mode vdom-less) habría sido sacrificar productividad a cambio de un rendimiento que el dominio no reclamaba, en pocas palabras, era sobreingeniería.
 
-Esa es la lección completa: no elegí "la mejor tecnología" en abstracto. Elegí rendimiento donde el negocio lo exigía (backend, base de datos, infraestructura) y productividad donde no lo hacía (frontend), usando siempre las capacidades reales de mi equipo como filtro.
+Esa es la lección completa: en vez de perseguir "la mejor tecnología" en abstracto, elegí rendimiento donde el negocio lo exigía (backend, base de datos, infraestructura) y productividad donde no lo hacía (frontend), teniendo en cuenta la capacidad de mi equipo.
 
 ## Conclusiones
 
-Diseñar Dayvent no fue elegir de una vez por todas entre rendimiento y productividad, sino responder esa misma pregunta en cada capa con la información de esa capa:
+Diseñar Dayvent consistió en responder esa misma pregunta "rendimiento o productividad" en cada capa y con la información de esa capa, en lugar de resolverla de una sola vez al inicio del proyecto:
 
-- **La infraestructura primero.** Pensar el entorno antes que el código evita facturas sorpresa y decisiones que después no se pueden desandar.
-- **Rendimiento donde el dominio lo exige, productividad donde no.** Go, Postgres y Cloud Run donde la velocidad es negocio; React donde lo que importa es entregar.
-- **Evita los dos extremos.** La sobreingeniería te hace pagar complejidad que nadie pidió; la sobre-deuda técnica te hace pagar intereses que nunca acaban. El buen diseño vive en el medio, y el punto medio lo define tu contexto: dominio, presupuesto y equipo.
+- **La infraestructura es primero:** Pensar el entorno antes que el código evita facturas sorpresa y decisiones que después no se pueden rebobinar.
+- **El rendimiento y la productividad donde sean necesarios:** Go, Postgres y Cloud Run responden al rendimiento. Y React responde a la productividad.
+- **Evita los dos extremos:** La sobreingeniería te hace pagar complejidad innecesaria. La sobre-deuda técnica te hace pagar intereses que nunca acaban. El diseño que está bien hecho, encuentra un equilibrio en la balanza que mencionamos previamente.
 
-Si te llevas una sola idea, que sea esta: **no existe la arquitectura "correcta" en abstracto, existe la correcta para tu contexto.** Y saber leer ese contexto —cuándo pagar por rendimiento y cuándo pagar por velocidad de entrega— es, en el fondo, de lo que trata diseñar software.
+Si de este artículo, te llevas una idea o enseñanza, lo ideal es la siguiente: **en lugar de aspirar a la arquitectura "correcta" para todo, aspira a la que resulta correcta para tu contexto.** Y saber leer ese contexto (cuándo pagar por rendimiento y cuándo pagar por velocidad de entrega) es de lo que trata el diseño de software.
 
 ## Fuentes
 
-- [Google Cloud Run — documentación oficial](https://cloud.google.com/run/docs)
-- [Google Cloud Tasks — documentación oficial](https://cloud.google.com/tasks/docs)
-- [PostgreSQL — Table Partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html)
-- [ClickHouse — Why is ClickHouse fast?](https://clickhouse.com/docs/en/concepts/why-clickhouse-is-so-fast)
-- [Prisma — Connection pool y entornos serverless](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections)
-- [AWS RDS Proxy — documentación oficial](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.html)
+- [Google Cloud Run (documentación oficial)](https://cloud.google.com/run/docs)
+- [Google Cloud Tasks (documentación oficial)](https://cloud.google.com/tasks/docs)
+- [PostgreSQL: Table Partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html)
+- [ClickHouse: Why is ClickHouse fast?](https://clickhouse.com/docs/en/concepts/why-clickhouse-is-so-fast)
+- [Prisma: Connection pool y entornos serverless](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections)
+- [Prisma: AWS RDS Proxy fija las conexiones (sin beneficio de pooling con Prisma Client)](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/configure-pg-bouncer#aws-rds-proxy)
+- [AWS Lambda: reutilización del entorno de ejecución](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html)
+- [AWS RDS Proxy (documentación oficial)](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.html)
