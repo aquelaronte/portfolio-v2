@@ -41,16 +41,14 @@ import TerminalCursor from "../atoms/terminal-cursor.astro";
   }
 </style>
 
-<video
-  class="fixed inset-0 -z-20 h-full w-full object-cover"
-  src={bgVideo}
-  autoplay
-  loop
-  muted
-  playsinline
-  transition:persist></video>
 <div
-  class="bg-background/80 fixed inset-0 -z-10 backdrop-blur-xl"
+  class="bg-background/80 fixed inset-0 -z-20 backdrop-blur-xl"
+  transition:persist
+>
+</div>
+<div
+  class="pointer-events-none fixed inset-0 -z-10"
+  style="background-image: linear-gradient(to right, color-mix(in oklab, var(--color-foreground) 4%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--color-foreground) 4%, transparent) 1px, transparent 1px); background-size: 44px 44px; mask-image: radial-gradient(ellipse at center, black 40%, transparent 85%); -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 85%);"
   transition:persist
 >
 </div>
