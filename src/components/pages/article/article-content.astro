@@ -130,6 +130,24 @@ const { Content } = await render(article);
     margin-bottom: 20px;
   }
 
+  .article-content :global(blockquote) {
+    @apply border-primary/40 bg-foreground/5 text-foreground/60;
+    border-left: 3px solid;
+    border-radius: 8px;
+    margin: 24px 0;
+    padding: 14px 18px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .article-content :global(blockquote p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .article-content :global(blockquote strong) {
+    @apply text-foreground/80;
+  }
+
   .article-content :global(a) {
     @apply text-primary decoration-primary/40 underline underline-offset-4 transition-colors;
     text-decoration-thickness: 1px;

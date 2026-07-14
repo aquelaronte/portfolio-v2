@@ -1,0 +1,182 @@
+---
+/**
+ * Interactive file explorer: a collapsible folder tree on one side and a code
+ * viewer on the other. Clicking a file in the tree swaps the visible code block.
+ *
+ * All code is authored as normal fenced blocks (so Astro's Shiki highlights them
+ * at build time and the <CodeBlock> `pre` override applies). Each file's block is
+ * placed in a named slot keyed by its `path`; the slot name carries the identity
+ * that links a tree node to its code panel. Switching is pure client-side
+ * show/hide, so it degrades gracefully: with JS off, the default file stays open.
+ *
+ * Usage in MDX:
+ *   import FileExplorer from "@/components/pages/article/file-explorer.astro";
+ *
+ *   <FileExplorer
+ *     defaultFile="repositories/thread_repo.py"
+ *     tree={[
+ *       { name: "repositories/", children: [
+ *         { name: "thread_repo.py", path: "repositories/thread_repo.py" },
+ *       ]},
+ *     ]}
+ *   >
+ *     <Fragment slot="file:repositories/thread_repo.py">
+ *       ```python
+ *       ...
+ *       ```
+ *     </Fragment>
+ *   </FileExplorer>
+ */
+import FileExplorerTree from "./file-explorer-tree.astro";
+
+export interface FileExplorerNode {
+  name: string;
+  /** Required on files: links the node to its code panel + `file:<path>` slot. */
+  path?: string;
+  comment?: string;
+  /** Folders only: start collapsed with `open: false`. */
+  open?: boolean;
+  children?: FileExplorerNode[];
+}
+
+interface Props {
+  tree: FileExplorerNode[];
+  /** Path of the file shown on load. Defaults to the first file in the tree. */
+  defaultFile?: string;
+}
+
+const { tree, defaultFile } = Astro.props;
+
+const isFolder = (node: FileExplorerNode) =>
+  Boolean(node.children?.length) || node.name.endsWith("/");
+
+/** Depth-first list of file paths, in tree order. */
+function collectFiles(nodes: FileExplorerNode[]): string[] {
+  return nodes.flatMap((node) =>
+    node.children?.length
+      ? collectFiles(node.children)
+      : !isFolder(node) && node.path
+        ? [node.path]
+        : [],
+  );
+}
+
+const files = collectFiles(tree);
+const active = defaultFile ?? files[0];
+---
+
+<figure class="file-explorer" role="group" aria-label="Explorador de archivos">
+  <div class="file-explorer__pane file-explorer__pane--tree">
+    <FileExplorerTree tree={tree} active={active} />
+  </div>
+
+  <div class="file-explorer__pane file-explorer__pane--code">
+    {
+      files.map((path) => (
+        <div
+          class="file-explorer__panel"
+          data-file-panel={path}
+          data-active={path === active ? "" : undefined}
+        >
+          <slot name={`file:${path}`} />
+        </div>
+      ))
+    }
+  </div>
+</figure>
+
+<script>
+  function activate(root: HTMLElement, path: string) {
+    root
+      .querySelectorAll<HTMLElement>("[data-file-open]")
+      .forEach((btn) => {
+        const on = btn.getAttribute("data-file-open") === path;
+        btn.toggleAttribute("data-active", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+
+    root
+      .querySelectorAll<HTMLElement>("[data-file-panel]")
+      .forEach((panel) => {
+        panel.toggleAttribute(
+          "data-active",
+          panel.getAttribute("data-file-panel") === path,
+        );
+      });
+  }
+
+  function bindFileExplorers() {
+    document
+      .querySelectorAll<HTMLElement>(".file-explorer")
+      .forEach((root) => {
+        if (root.dataset.bound === "true") return;
+        root.dataset.bound = "true";
+
+        root.addEventListener("click", (e) => {
+          const btn = (e.target as HTMLElement).closest<HTMLElement>(
+            "[data-file-open]",
+          );
+          if (!btn || !root.contains(btn)) return;
+          const path = btn.getAttribute("data-file-open");
+          if (path) activate(root, path);
+        });
+      });
+  }
+
+  document.addEventListener("astro:page-load", bindFileExplorers);
+</script>
+
+<style>
+  @reference "../../../styles/global.css";
+
+  .file-explorer {
+    @apply border-foreground/10 rounded-xl border;
+    margin: 24px 0;
+    overflow: hidden;
+  }
+
+  /* Stacked by default (tree on top); side-by-side once there's room. */
+  @media (min-width: 640px) {
+    .file-explorer {
+      display: flex;
+      align-items: stretch;
+    }
+  }
+
+  .file-explorer__pane--tree {
+    @apply bg-foreground/5 border-b-foreground/10 border-b font-mono!;
+    padding: 12px;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  @media (min-width: 640px) {
+    .file-explorer__pane--tree {
+      @apply border-r-foreground/10 border-r border-b-0;
+      flex: 0 0 240px;
+      width: 240px;
+    }
+  }
+
+  .file-explorer__pane--code {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .file-explorer__panel {
+    display: none;
+  }
+
+  .file-explorer__panel[data-active] {
+    display: block;
+  }
+
+  /* The nested code block owns the outer frame elsewhere; inside a panel it sits
+     flush, so strip its margin/border/radius. */
+  .file-explorer__pane--code :global(.code-block) {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+</style>

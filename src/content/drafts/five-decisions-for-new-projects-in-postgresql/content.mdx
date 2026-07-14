@@ -1,0 +1,250 @@
+---
+title: "Cinco decisiones de PostgreSQL que deberías tomar para proyectos nuevos"
+description: "Cuando empezamos un proyecto nuevo con Postgres solemos arrancar sin cuestionarnos el porqué de cada decisión: sabemos que algo funciona, pero rara vez miramos el tema en profundidad."
+date: 2026-07-11
+tags: ["Database"]
+estimatedReadingTime: 22
+cover:
+  url: ../../../assets/projects/dayvent/cover.png
+  alt: "Dayvent POS/ERP architecture"
+---
+
+## Usar UUID
+
+En prácticamente cualquier tutorial, guía o snippet de código para bases de datos te vas a encontrar con algo como esto:
+
+```sql
+CREATE TABLE users(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- resto de la tabla
+);
+```
+
+Sabemos que sirve para generar UUIDs automáticamente desde la base de datos, y que hoy `gen_random_uuid()` es el estándar de facto para hacerlo. Pero ¿alguna vez te has planteado qué beneficios te aporta usar UUID más allá de "ser el estándar"?
+
+La verdad es que sí hay uno, y en muchos contextos puede ser crítico: a diferencia de los enteros autoincrementales, los UUID no revelan cuántos registros tiene una tabla.
+
+Con enteros consecutivos, desde el frontend te expones a una técnica de `scraping` que consiste en enumerar los registros de una tabla. Por ejemplo, si existe el recurso con ID 882, un atacante puede pedirle a tu API el 882, el 881, el 880, y así sucesivamente hasta reconstruir casi todos los registros; y puede repetir la jugada en cada tabla. Si tu API no restringe recursos por permisos, el problema ni siquiera es que obtenga los datos: es la latencia y el consumo de CPU que le mete a tu base de datos, sobre todo si por algún motivo decides no poner `rate limiting` (algo desastroso).
+
+Ahora bien, aun teniendo claro este beneficio, todavía queda un problema por resolver.
+
+### ¿Por qué `gen_random_uuid` no debería ser el estándar?
+
+A primera vista suena raro, porque acabas de ver por qué conviene usar UUIDs en la base de datos. Pero el problema no es el UUID en sí, sino la función que lo genera (`gen_random_uuid`).
+
+Esta función devuelve un UUIDv4: un identificador aleatorio de 36 caracteres. Y resulta que **las bases de datos relacionales** (no solo Postgres) se llevan mucho mejor con llaves primarias cuyos valores son consecutivos, por cómo funciona internamente un índice (un b-tree): cada nuevo registro simplemente va a parar a la hoja más a la derecha del árbol.
+
+Si no estás familiarizado con esto, es más sencillo de lo que parece; y si ya lo conoces, la siguiente explicación te lo dejará todavía más claro.
+
+### Cómo funciona un b-tree
+
+Un b-tree es una estructura de datos en forma de árbol diseñada para minimizar las lecturas en disco. Es lo que evita que Postgres tenga que escanear la tabla entera para encontrar un dato: en su lugar, dispone de atajos para llegar a él. Eso es, en esencia, un índice: un "atajo".
+
+Y ese atajo que usa la base de datos al construir un índice (recuerda que las llaves primarias siempre son un índice) es precisamente un b-tree.
+
+En este artículo no vamos a entrar en el detalle de cómo se construye un b-tree, pero para entender cómo funciona imagina que tienes un millón de nombres ordenados alfabéticamente. Podríamos representarlos así:
+
+```
+A...............M...............Z
+```
+
+Si quieres buscar "Pedro", sabes que empieza por "P", así que no hace falta recorrer todos los registros: está entre la M y la Z. Entras en ese rango y te encuentras con lo siguiente:
+
+```
+M...............S...............Z
+```
+
+La P está entre la M y la S, así que sigues profundizando en esa parte:
+
+```
+M...............O...............S
+```
+
+Y así sucesivamente, hasta que llegas a la "P" y, dentro de los registros que empiezan por "P", iteras hasta dar con "Pedro". Como en cada paso divides el grupo a la mitad, tu tiempo de búsqueda no es `O(n)`, sino `O(log n)`.
+
+### UUIDv4 en un b-tree
+
+Cuando insertas un registro con un ID consecutivo (como un entero autoincremental), la base de datos simplemente lo coloca al final del b-tree: la inserción en el índice es limpia. El UUIDv4, en cambio, es completamente aleatorio: sus valores no son consecutivos, así que el dato puede caer en cualquier página del árbol y la base de datos termina rebalanceándolo en cada inserción.
+
+Además, lo normal después de insertar un dato es mostrárselo al usuario. Pero la página donde cayó ese registro puede que no esté cargada en `shared_buffers`, lo que obliga a ir a disco y hace que el dato llegue más lento a quien lo pidió.
+
+
+### La solución
+
+A partir de Postgres 18 hay soporte nativo para generar UUIDv7. Este tipo de UUID mantiene la parte aleatoria de siempre, pero le antepone un timestamp. Gracias a eso, el último registro insertado siempre cae al final del b-tree, como si se tratara de un número consecutivo.
+
+Así puedes seguir usando UUID en bases de datos relacionales conservando el mismo comportamiento interno que un entero autoincremental (dejando de lado que el UUID ocupa más caracteres).
+
+Ahora, un **detalle importante**: esto se traduce en milisegundos (o segundos, si tu base de datos es grande) de mejora en los tiempos de respuesta. Si ya tienes cientos de tablas con UUIDv4, esos milisegundos no te preocupan o tus tablas no crecen demasiado, el cambio no es tan relevante. Pero para proyectos nuevos vale la pena considerarlo, te cuesta una sola línea de SQL y mejora el rendimiento de tu backend. `gen_random_uuid` no debería ser el estándar de la industria, aunque usarlo tampoco es pecado, ni UUIDv7 es obligatorio.
+
+## Usar `TIMESTAMPTZ`, no `TIMESTAMP`
+
+La siguiente decisión que casi todo el mundo toma en piloto automático es el tipo de las columnas de fecha. Mucha gente escribe `TIMESTAMP` porque es lo primero que aparece en el autocompletado, sin darse cuenta de que en el 99% de los casos lo que realmente quiere es `TIMESTAMPTZ`.
+
+Y aquí hay una confusión enorme que empieza, precisamente, por el nombre.
+
+### El nombre te está mintiendo
+
+`TIMESTAMPTZ` se lee como "timestamp with time zone", y lo natural es pensar que la columna guarda la zona horaria junto con la fecha. No lo hace. **Ninguno de los dos tipos almacena una zona horaria.**
+
+Internamente, un `TIMESTAMPTZ` ocupa 8 bytes: un entero de 64 bits que representa la cantidad de microsegundos transcurridos desde el 1 de enero del 2000 a medianoche en UTC (sí, el epoch interno de Postgres es el año 2000, no 1970 como en Unix). Un `TIMESTAMP` sin zona ocupa exactamente lo mismo, 8 bytes con la misma representación. En disco son idénticos.
+
+Entonces, si el tamaño y la representación son iguales, ¿en qué se diferencian? En lo que Postgres hace en el momento de escribir y de leer.
+
+### Qué hace Postgres al escribir y al leer
+
+Cuando insertas un valor en una columna `TIMESTAMPTZ`, Postgres toma el literal, lo interpreta según la zona horaria de tu sesión (el parámetro `TimeZone`) o según el offset explícito que le pases, y lo convierte a UTC antes de guardarlo. Cuando lo lees, hace el camino inverso: toma ese instante en UTC y lo renderiza en la zona de tu sesión.
+
+```sql
+SET TimeZone = 'America/Bogota';
+
+SELECT '2026-07-11 10:00:00'::timestamptz;
+-- Postgres lo guarda internamente como 2026-07-11 15:00:00 UTC
+-- y te lo muestra de vuelta como 2026-07-11 10:00:00-05
+```
+
+El instante que quedó grabado es un punto absoluto en la línea de tiempo, sin ambigüedad. Da igual desde qué zona lo consultes: alguien en Tokio verá ese mismo instante expresado en horario de Tokio, pero es el mismo momento.
+
+`TIMESTAMP` (sin `tz`) no hace nada de esto. Guarda el literal tal cual, como un reloj de pared descolgado, sin saber a qué zona pertenece. "2026-07-11 10:00" son las diez... ¿en dónde? El tipo no lo sabe, y en cuanto tu backend, tu base de datos y tus usuarios estén en zonas distintas, tú tampoco.
+
+### Por qué esto te va a doler si eliges mal
+
+El problema con `TIMESTAMP` no aparece el primer día. Aparece cuando despliegas el servidor en una región distinta a la tuya, cuando entra un usuario desde otra zona, o cuando llega el cambio de horario de verano y de repente tienes una hora que existió dos veces o una que no existió nunca. Con `TIMESTAMP` guardas horas de pared sin contexto y todos esos cálculos quedan a tu cargo, en el código de la aplicación, que es justo donde más fácil es equivocarse.
+
+Con `TIMESTAMPTZ` delegas toda esa aritmética a Postgres, que la hace bien y de forma consistente. La regla práctica es simple: usa `TIMESTAMPTZ` por defecto y piensa siempre en UTC. `TIMESTAMP` sin zona solo tiene sentido para fechas que son deliberadamente independientes de la zona (por ejemplo, "una alarma que suena a las 08:00 hora local sin importar dónde estés"), y esos casos son la excepción, no la norma.
+
+## Usar `TEXT`, no `VARCHAR(n)`
+
+Si vienes de otras bases de datos, seguramente tienes tatuado el reflejo de escribir `VARCHAR(255)` para casi cualquier campo de texto. En Postgres ese hábito no te aporta nada, y para entender por qué hay que mirar cómo trata internamente las cadenas.
+
+### Para Postgres, `TEXT` y `VARCHAR` son el mismo tipo
+
+Postgres tiene varios tipos de texto: `char(n)`, `varchar(n)`, `varchar` y `text`. Lo que casi nadie sabe es que, por dentro, todos comparten exactamente la misma representación (una estructura llamada `varlena`) y pasan por el mismo código. `text` y `varchar` se almacenan de forma idéntica; la única diferencia es que `varchar(n)` añade una comprobación extra que verifica que la longitud no supere `n`.
+
+Es decir, `VARCHAR(255)` no es "más eficiente" ni "más ligero" que `TEXT`. Es `TEXT` con una restricción de longitud encima que, además, tienes que pagar en cada inserción y actualización. No hay ninguna ventaja de rendimiento por acotar la longitud; el número que pongas es puramente una regla de negocio.
+
+### `varlena`, las páginas de 8 KB y el TOAST
+
+Para ver por qué el tamaño no cambia nada, vale la pena entender cómo guarda Postgres los datos físicamente. La base de datos organiza el disco en **páginas de 8 KB** (el famoso `BLCKSZ`), y una fila no puede partirse entre dos páginas: tiene que caber entera en una.
+
+Cada valor de texto se guarda como un `varlena`: una cabecera corta (1 o 4 bytes) que indica la longitud, seguida de los bytes reales. La longitud es dinámica, así que una cadena de 3 caracteres ocupa lo que ocupa, sin importar si la columna es `VARCHAR(3)` o `VARCHAR(1000)`.
+
+¿Y qué pasa cuando un valor es enorme y la fila ya no cabe en su página de 8 KB? Ahí entra el mecanismo **TOAST** (*The Oversized-Attribute Storage Technique*). Cuando una fila supera cierto umbral (alrededor de 2 KB), Postgres intenta reducirla: primero comprime los valores grandes y, si aún así no caben, los saca de la fila y los guarda "fuera de línea" en una tabla TOAST paralela (una por cada tabla, en el esquema `pg_toast`), dejando en la fila original solo un puntero de 18 bytes hacia el dato real.
+
+```sql
+-- Ambas columnas se almacenan igual: varlena + TOAST si crecen.
+-- La diferencia es solo el CHECK de longitud que impone la de arriba.
+nombre  VARCHAR(255)
+nombre  TEXT
+```
+
+Todo esto ocurre de forma transparente y es idéntico para `TEXT` y para `VARCHAR(n)`. El `n` no influye en cuándo se dispara el TOAST ni en cuánto ocupa el dato; solo decide a partir de qué longitud Postgres te lanza un error.
+
+### Entonces, ¿nunca pongo límites?
+
+Sí que los pones, pero con la herramienta correcta. Si de verdad necesitas acotar un campo (un código de país de 2 letras, un campo con una longitud máxima real del negocio), usa `TEXT` con una restricción `CHECK`:
+
+```sql
+CREATE TABLE users(
+    id       UUID PRIMARY KEY DEFAULT uuidv7(),
+    username TEXT NOT NULL CHECK (char_length(username) <= 30)
+);
+```
+
+Esto es más explícito (documenta la intención real), es igual de válido a nivel de integridad, y te evita el clásico `VARCHAR(255)` que nadie eligió a conciencia, sino que se copió de otro sitio. Reserva la longitud fija para cuando exista una razón concreta, no como valor por defecto.
+
+## Guardar el dinero como enteros, nunca como `float`
+
+Esta decisión es corta de explicar pero cara de arreglar si la tomas mal, y curiosamente es de las que más se equivocan: guardar cantidades de dinero en un tipo de punto flotante como `real` o `double precision`.
+
+### Por qué `float` no sabe contar dinero
+
+Los tipos `float4` y `float8` de Postgres son punto flotante IEEE 754, el mismo estándar que usa casi todo el hardware del mundo. El detalle es que representan los números en **binario**, y en binario hay fracciones decimales tan simples como `0.1` que no tienen una representación exacta, igual que `1/3` no la tiene en decimal. El resultado es que se guarda una aproximación, y esas aproximaciones se acumulan con cada operación:
+
+```sql
+SELECT 0.1::float8 + 0.2::float8;
+-- 0.30000000000000004
+```
+
+Ese error minúsculo es inofensivo en un cálculo científico, pero en una factura, un saldo o un reporte contable es una bomba de tiempo: los totales dejan de cuadrar por centavos que "aparecen" de la nada, y rastrear el origen es una pesadilla.
+
+Y hay un segundo problema del que se habla mucho menos: la precisión del `float` **se degrada a medida que el número crece**. Un `float8` tiene 52 bits de mantisa, o sea unos 15 o 16 dígitos significativos en total. Con dólares o euros rara vez llegas ahí, pero con monedas latinoamericanas —pesos colombianos, guaraníes, pesos argentinos— los importes arrastran varios ceros de más, y en cuanto tu magnitud se acerca a ese límite empiezas a perder los centavos de la derecha para poder representar los millones de la izquierda. El punto flotante literalmente sacrifica exactitud según crece la cifra, que es justo lo peor que le puede pasar a una cuenta.
+
+### La estrategia: enteros en la unidad mínima
+
+La forma más robusta de guardar dinero es no guardar decimales en absoluto: guardas un **entero grande que expresa el valor en la unidad mínima** de la moneda (centavos, o incluso milésimas si necesitas más resolución para impuestos y tasas). En lugar de `19.99` guardas `1999`, y divides entre 100 solo en el momento de mostrarlo.
+
+```sql
+price_in_cents  BIGINT NOT NULL   -- 1999 = $19.99
+```
+
+Esto no es un truco casero, es como lo hace media industria. Stripe, por ejemplo, maneja todos sus montos como enteros en la unidad mínima más un código de moneda. Muchos brokers y sistemas financieros van más allá y guardan el valor como *string* o como un objeto de metadatos que acompaña a la cifra, describiendo qué hay que hacer para renderizar el valor real: la moneda, el exponente (cuántas posiciones correr el punto), el redondeo. El número crudo y las reglas de presentación viajan por separado.
+
+¿Por qué tanta gente elige este camino en vez de un tipo decimal?
+
+- **Esquivas el punto flotante por completo.** Las operaciones sobre enteros son exactas y triviales para el procesador; sumar saldos, acumular totales o comparar cifras no tiene ninguna de las complicaciones de la aritmética flotante.
+- **Tienes muchísimo margen hacia la izquierda.** Un `BIGINT` son 8 bytes con un rango de más o menos 9.2 trillones (en escala corta, 9.2 · 10^18). Guardando centavos eso te da holgura para importes gigantescos sin perder un solo dígito, que es exactamente lo que necesitas cuando trabajas con monedas de muchos ceros y no con dólares.
+- **La exactitud no depende de la magnitud.** A diferencia del `float`, un entero es igual de exacto valga mil o valga un billón; nunca cambias precisión por rango.
+
+El costo es que la escala corre por tu cuenta: tú decides que el `1999` significa `19.99` y te aseguras de dividir y redondear de forma consistente al mostrar y al calcular impuestos o descuentos. Es una responsabilidad pequeña a cambio de exactitud total.
+
+### ¿Y `NUMERIC`?
+
+Postgres tiene un tipo pensado justo para esto, `NUMERIC` (o `DECIMAL`, son sinónimos), y también es una opción perfectamente válida. Por dentro es de longitud variable y guarda el número en **base 10000**, como una secuencia de grupos de dígitos donde cada grupo es un entero de 16 bits, más una cabecera con el peso, la escala y el signo. En otras palabras, guarda los dígitos decimales de forma exacta, sin traducirlos nunca a binario, así que no sufre ninguno de los problemas del `float`.
+
+La contra es que esa exactitud se paga: `NUMERIC` ocupa más espacio y su aritmética se hace por software, no en la FPU del procesador, así que es bastante más lento que operar con enteros. Si te interesa mantener toda la lógica de escala dentro de la base de datos y no en la aplicación, `NUMERIC(precision, scale)` es una elección legítima. Yo suelo preferir el entero por lo que ya vimos —velocidad, margen y una regla mental más simple—, pero entre `NUMERIC` y un `float` no hay debate: cualquiera de los dos exactos antes que uno aproximado.
+
+### La regla
+
+```sql
+precio_centavos  BIGINT           -- recomendado: entero en la unidad mínima
+precio           NUMERIC(14, 2)    -- alternativa exacta, si prefieres decimales en la BD
+precio           DOUBLE PRECISION  -- jamás: pierde centavos y precisión con la magnitud
+```
+
+Guarda el dinero como un entero en la unidad mínima y escala solo al presentarlo; si de verdad quieres decimales nativos, usa `NUMERIC`. Lo único que nunca debes hacer es meter dinero en un `float`.
+
+## Indexar más allá de la llave primaria
+
+Cierro con una decisión que no es sobre tipos, sino sobre cómo se comporta Postgres cuando tu tabla crece. Y aquí podemos reutilizar todo lo que ya montamos con el b-tree al inicio del artículo.
+
+### Tu llave primaria es un solo índice
+
+Cuando defines una tabla, la llave primaria te regala un b-tree sobre la columna `id`. El problema es que casi nunca buscas por `id`: buscas por `email`, filtras por `status`, ordenas por `created_at`. Y para todas esas columnas, Postgres no tiene ningún atajo.
+
+Sin un índice sobre la columna que consultas, la base de datos no tiene más remedio que hacer un *sequential scan*: leer la tabla entera, página de 8 KB por página de 8 KB, comprobando fila por fila si cumple la condición. Eso es `O(n)`, y con pocos miles de filas ni lo notas, pero con millones se convierte en el cuello de botella de toda tu aplicación. Un índice sobre esa columna vuelve la búsqueda `O(log n)`, exactamente por el mecanismo de "divide y descarta" que vimos con "Pedro".
+
+```sql
+-- Sin este índice, buscar por email escanea la tabla completa.
+CREATE INDEX idx_users_email ON users (email);
+```
+
+### Índices parciales: no indexes lo que no consultas
+
+Postgres permite algo que mucha gente no aprovecha: indexar solo un subconjunto de las filas. Si tus consultas siempre filtran por un estado concreto (pedidos pendientes, usuarios activos, filas no borradas en un *soft delete*), no tiene sentido cargar el índice con las filas que nunca vas a buscar.
+
+```sql
+CREATE INDEX idx_orders_pending ON orders (created_at)
+WHERE status = 'pending';
+```
+
+Este índice solo contiene las filas pendientes. Es más pequeño, cabe mejor en memoria (recuerda los `shared_buffers` de la primera sección) y se mantiene más barato en cada escritura, porque los pedidos que ya se completaron ni siquiera lo tocan.
+
+### Índices que cubren la consulta (index-only scan)
+
+Aquí es donde se pone interesante por dentro. Normalmente, un índice te dice *en qué fila* está el dato, pero luego Postgres tiene que ir a buscar esa fila a la tabla (el *heap*) para leer las columnas que pediste. Son dos saltos.
+
+Si el índice ya contiene todas las columnas que la consulta necesita, Postgres puede responder leyendo únicamente el índice, sin tocar el heap. Es lo que se llama un *index-only scan* y se logra, por ejemplo, con la cláusula `INCLUDE`:
+
+```sql
+CREATE INDEX idx_users_email_cover ON users (email) INCLUDE (username);
+-- SELECT username FROM users WHERE email = ? se resuelve solo con el índice
+```
+
+Ahora, el **detalle que casi nadie menciona**: para que ese atajo funcione, Postgres necesita estar seguro de que la fila es visible para tu transacción, y esa información de visibilidad no vive en el índice, sino en el heap. Para no ir siempre al heap, Postgres mantiene una estructura llamada *visibility map*, que marca qué páginas tienen todas sus filas visibles para todo el mundo. Si la página está marcada como "todo visible", el index-only scan se cumple de verdad; si no (por ejemplo, justo después de muchas escrituras y antes de un `VACUUM`), Postgres cae de vuelta al heap para confirmar. Por eso mantener el `VACUUM` al día no es solo higiene: es lo que hace que estos índices rindan como esperas.
+
+### El costo de indexar
+
+Nada de esto es gratis. Cada índice que creas es un b-tree adicional que Postgres tiene que **actualizar en cada `INSERT`, `UPDATE` y `DELETE`**, además del espacio en disco que ocupa. Llenar una tabla de índices "por si acaso" hace que tus escrituras se arrastren y que la base de datos crezca sin control.
+
+La regla, entonces, no es indexar todo ni indexar nada: es indexar lo que realmente consultas. Mira tus consultas más frecuentes, identifica por qué columnas filtras y ordenas, y crea índices para esas. Ni una más.

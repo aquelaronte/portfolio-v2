@@ -11,13 +11,13 @@ cover:
 
 ## Glosario
 
-| Término        | Significado                                                                                                                                                                                                                                                                                                           |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sistema POS    | Los sistemas de punto de venta o sistemas POS (Point of Sale) son aquellos cuya finalidad es cubrir lo que hace una caja registradora en un negocio y sus funciones subyacentes: registrar productos, facturar ventas, hacer seguimiento de las ventas y llevar el conteo del dinero.                                    |
-| SaaS           | Software as a Service (SaaS) son programas informáticos que brindan un servicio a cambio de un cobro monetario. Por ejemplo, Netflix ofrece streaming a cambio de una suscripción mensual.                                                                                                                              |
-| FaaS           | Function as a Service (FaaS) es un servicio en la nube que te permite ejecutar una función atómica en una máquina remota.                                                                                                                                                                                              |
-| Tenant         | Cada cliente aislado dentro de un mismo sistema SaaS multiinquilino. En Dayvent, cada restaurante es un tenant que comparte la infraestructura pero no sus datos.                                                                                                                                                       |
-| Arranque en frío | El tiempo que tarda una instancia nueva en estar lista para atender su primera petición. Es crítico en entornos serverless, donde las instancias se crean y destruyen constantemente.                                                                                                                                 |
+| Término          | Significado                                                                                                                                                                                                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sistema POS      | Los sistemas de punto de venta o sistemas POS (Point of Sale) son aquellos cuya finalidad es cubrir lo que hace una caja registradora en un negocio y sus funciones subyacentes: registrar productos, facturar ventas, hacer seguimiento de las ventas y llevar el conteo del dinero. |
+| SaaS             | Software as a Service (SaaS) son programas informáticos que brindan un servicio a cambio de un cobro monetario. Por ejemplo, Netflix ofrece streaming a cambio de una suscripción mensual.                                                                                            |
+| FaaS             | Function as a Service (FaaS) es un servicio en la nube que te permite ejecutar una función atómica en una máquina remota.                                                                                                                                                             |
+| Tenant           | Cada cliente aislado dentro de un mismo sistema SaaS multiinquilino. En Dayvent, cada restaurante es un tenant que comparte la infraestructura pero no sus datos.                                                                                                                     |
+| Arranque en frío | El tiempo que tarda una instancia nueva en estar lista para atender su primera petición. Es crítico en entornos serverless, donde las instancias se crean y destruyen constantemente.                                                                                                 |
 
 ## Contexto
 
@@ -38,7 +38,7 @@ La respuesta siempre ha sido "depende". Si el rendimiento no importara en ningú
 - El **rendimiento** prioriza la velocidad de respuesta y la calidad del software.
 - La **productividad** prioriza qué tan rápido podemos desarrollar ese software.
 
-Es una decisión que se toma en cada capa del sistema, no solo cuando el diseño empieza. Este artículo tratará sobre como respondí esta pregunta una y otra vez al diseñar Dayvent. 
+Es una decisión que se toma en cada capa del sistema, no solo cuando el diseño empieza. Este artículo tratará sobre como respondí esta pregunta una y otra vez al diseñar Dayvent.
 
 Antes de abordar Dayvent, quiero aclarar el marco con el que razono cada capa. Voy a recorrer las tres fases de diseño por las que pasé:
 
@@ -66,13 +66,13 @@ Con ese presupuesto limitado, optas por lo siguiente:
 2. Creas una instancia de base de datos en `AWS RDS` y conectas el backend directamente.
 3. Despliegas el frontend de Next.js en Vercel.
 
-Semanas después, la empresa se queja: les llegó una factura de $3.000 USD. Y ahí te preguntas: *"¿Qué habré hecho mal?"*.
+Semanas después, la empresa se queja: les llegó una factura de $3.000 USD. Y ahí te preguntas: _"¿Qué habré hecho mal?"_.
 
 Lo que sucedió es que no concebiste la infraestructura al momento de diseñar. No pensaste en el presupuesto, ni en el entorno de ejecución, ni en lo que realmente necesita tu software. Cometiste tres errores de diseño muy comunes:
 
 1. **NestJS depende fuertemente de decoradores de TypeScript**, lo cual alarga el arranque porque hacer `reflection` a través de toda la app es una tarea intensiva de CPU. En un entorno serverless, esto se traduce en arranques en frío bastante largos. Con NestJS, casi por eficiencia, estás obligado a usar un EC2 en aplicaciones monolíticas.
 2. **Las lambdas de AWS son FaaS**: están pensadas para hacer una sola tarea, más parecidas a un endpoint. AWS reutiliza el mismo entorno de ejecución para peticiones que llegan de forma secuencial, pero crea una instancia nueva por cada petición **concurrente**. Bajo carga (justo la hora pico de un POS) eso se traduce en decenas de instancias en paralelo, cada una pagando su propio arranque en frío. Hospedar una aplicación de backend entera ahí dentro es catastrófico.
-3. **Los entornos serverless con varias instancias no deben conectarse directamente a la base de datos.** Cada instancia es independiente y usa su propio cliente de `Prisma ORM`, así que cada ejecución abre nuevas conexiones. Postgres tiene un límite de conexiones y rechaza las que lo exceden; a nivel de red eso se traduce en timeouts esperando el pool de conexiones. La solución es un pooler de conexiones externo, **pero ojo con la herramienta**: `AWS RDS Proxy` parece la respuesta obvia y no lo es junto a Prisma. Por la forma en que RDS Proxy *fija* (pins) las conexiones al cliente, no aporta ningún beneficio de pooling cuando se usa con Prisma Client (así lo documenta la [propia Prisma](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections#aws-rds-proxy)). Ahí la salida real es un pooler pensado para este caso (por ejemplo `Prisma Accelerate` o `PgBouncer` en modo transacción), y no RDS Proxy.
+3. **Los entornos serverless con varias instancias no deben conectarse directamente a la base de datos.** Cada instancia es independiente y usa su propio cliente de `Prisma ORM`, así que cada ejecución abre nuevas conexiones. Postgres tiene un límite de conexiones y rechaza las que lo exceden; a nivel de red eso se traduce en timeouts esperando el pool de conexiones. La solución es un pooler de conexiones externo, **pero ojo con la herramienta**: `AWS RDS Proxy` parece la respuesta obvia y no lo es junto a Prisma. Por la forma en que RDS Proxy _fija_ (pins) las conexiones al cliente, no aporta ningún beneficio de pooling cuando se usa con Prisma Client (así lo documenta la [propia Prisma](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections#aws-rds-proxy)). Ahí la salida real es un pooler pensado para este caso (por ejemplo `Prisma Accelerate` o `PgBouncer` en modo transacción), y no RDS Proxy.
 
 Visto en conjunto, la trampa se ve así: cada petición concurrente levanta su propia instancia, y cada instancia abre sus propias conexiones contra una base de datos con un límite fijo.
 
@@ -150,9 +150,9 @@ Ahora, inclinarse hacia el rendimiento **no** significa activar la sobreingenier
 
 ¿Recuerdas la factura de 3.000 USD del ejemplo de AWS? La raíz del problema era meter un backend pesado y de arranque lento en un modelo FaaS que no estaba hecho para él. Yo quería lo contrario: **autoescalado y pago por uso, pero sin pagar el precio del arranque en frío ni el de un servidor fijo encendido las 24 horas.**
 
-Por eso elegí **Google Cloud Run**. Cloud Run es un *CaaS* (Container as a Service), ejecuta el backend como un contenedor con autoescalado: escala a cero cuando no hay tráfico y crece bajo demanda, pero no me obliga a partir la aplicación en funciones atómicas como una lambda. Es el punto medio exacto entre "pagar un EC2 fijo" y "forzar toda la app dentro de un FaaS". Y aquí es donde la decisión del backend y la de infraestructura se refuerzan: como el backend está en Go, que compila a un binario que arranca casi instantáneamente, el arranque en frío (el talón de Aquiles del ejemplo con NestJS) deja de ser un problema.
+Por eso elegí **Google Cloud Run**. Cloud Run es un _CaaS_ (Container as a Service), ejecuta el backend como un contenedor con autoescalado: escala a cero cuando no hay tráfico y crece bajo demanda, pero no me obliga a partir la aplicación en funciones atómicas como una lambda. Es el punto medio exacto entre "pagar un EC2 fijo" y "forzar toda la app dentro de un FaaS". Y aquí es donde la decisión del backend y la de infraestructura se refuerzan: como el backend está en Go, que compila a un binario que arranca casi instantáneamente, el arranque en frío (el talón de Aquiles del ejemplo con NestJS) deja de ser un problema.
 
-Para el trabajo asíncono uso una cola con **Cloud Tasks**. En Go lo ideal para ejecutar tareas asíncronas después de responderle al cliente es hacer lo siguiente:
+Para el trabajo asíncrono uso una cola con **Cloud Tasks**. En Go lo ideal para ejecutar tareas asíncronas después de responderle al cliente es hacer lo siguiente:
 
 ```go
 go asynctask.Execute(ctx.Background)

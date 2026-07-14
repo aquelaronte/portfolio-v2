@@ -1,0 +1,217 @@
+---
+/**
+ * Interactive folder/file structure for articles.
+ *
+ * Folders are collapsible via native <details>/<summary> — no JavaScript at all.
+ * The component is data-driven and recursive (renders itself for children), and
+ * every node accepts an optional `comment` shown as a muted `# ...` note.
+ *
+ * Usage in MDX:
+ *   import FileTree from "@/components/pages/article/file-tree.astro";
+ *
+ *   <FileTree tree={[
+ *     { name: "app/", comment: "Aplicación", children: [
+ *       { name: "commands/", comment: "Nuestros casos de uso" },
+ *       { name: "server.py", comment: "Configuración de FastAPI" },
+ *     ]},
+ *     { name: "main.py", comment: "Punto de entrada del asistente" },
+ *   ]} />
+ *
+ * A node is a folder when it has `children` or its `name` ends with "/".
+ * Folders start expanded; set `open: false` on a node to collapse it initially.
+ */
+export interface FileTreeNode {
+  name: string;
+  comment?: string;
+  open?: boolean;
+  children?: FileTreeNode[];
+}
+
+interface Props {
+  tree: FileTreeNode[];
+  /** Internal: set on recursive calls so only the root gets the outer frame. */
+  nested?: boolean;
+}
+
+import { Icon } from "astro-icon/components";
+
+const { tree, nested = false } = Astro.props;
+
+const isFolder = (node: FileTreeNode) =>
+  Boolean(node.children?.length) || node.name.endsWith("/");
+---
+
+<ul
+  class:list={[
+    "file-tree__list",
+    !nested && "file-tree",
+    nested && "file-tree__branch",
+  ]}
+  role={nested ? undefined : "tree"}
+>
+  {
+    tree.map((node) =>
+      isFolder(node) ? (
+        <li class="file-tree__item" role="treeitem">
+          <details class="file-tree__folder" open={node.open !== false}>
+            <summary class="file-tree__row file-tree__row--folder">
+              <Icon
+                name="lucide:chevron-right"
+                class="file-tree__chevron"
+                aria-hidden="true"
+              />
+              <Icon
+                name="lucide:folder"
+                class="file-tree__icon file-tree__icon--folder file-tree__icon--closed"
+                aria-hidden="true"
+              />
+              <Icon
+                name="lucide:folder-open"
+                class="file-tree__icon file-tree__icon--folder file-tree__icon--open"
+                aria-hidden="true"
+              />
+              <span class="file-tree__name">{node.name}</span>
+              {node.comment && (
+                <span class="file-tree__comment"># {node.comment}</span>
+              )}
+            </summary>
+            {node.children?.length ? (
+              <Astro.self tree={node.children} nested />
+            ) : null}
+          </details>
+        </li>
+      ) : (
+        <li class="file-tree__item" role="treeitem">
+          <div class="file-tree__row file-tree__row--file">
+            <span class="file-tree__chevron file-tree__chevron--spacer" />
+            <Icon
+              name="lucide:file"
+              class="file-tree__icon file-tree__icon--file"
+              aria-hidden="true"
+            />
+            <span class="file-tree__name">{node.name}</span>
+            {node.comment && (
+              <span class="file-tree__comment"># {node.comment}</span>
+            )}
+          </div>
+        </li>
+      ),
+    )
+  }
+</ul>
+
+<style>
+  @reference "../../../styles/global.css";
+
+  /* Outer frame — mirrors the code-block look. Only the root <ul> gets it. */
+  .file-tree {
+    @apply bg-foreground/5 border-foreground/10 rounded-xl border font-mono!;
+    margin: 24px 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* Reset article-content's global list styles (bullets, indents, spacing). */
+  .file-tree__list {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Nested lists: indent + a vertical guide line. */
+  .file-tree__branch {
+    margin-left: 8px !important;
+    padding-left: 14px !important;
+    border-left: 1px solid;
+    @apply border-foreground/10;
+  }
+
+  .file-tree__item {
+    margin: 0 !important;
+    padding: 0 !important;
+    position: static;
+  }
+
+  /* Kill the global `ul > li::before { content: "-" }` dash. */
+  .file-tree__item::before {
+    content: none !important;
+  }
+
+  .file-tree__row {
+    @apply text-foreground/70;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .file-tree__row--folder {
+    @apply text-foreground/85 hover:bg-foreground/5 cursor-pointer;
+    font-weight: 600;
+    list-style: none;
+    transition: background-color 0.15s;
+  }
+
+  /* Remove the native <summary> disclosure triangle. */
+  .file-tree__row--folder::-webkit-details-marker {
+    display: none;
+  }
+
+  .file-tree__chevron {
+    @apply text-foreground/40;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+
+  /* Files have no disclosure control — keep names aligned with folder names. */
+  .file-tree__chevron--spacer {
+    visibility: hidden;
+  }
+
+  .file-tree__folder[open] > summary .file-tree__chevron {
+    transform: rotate(90deg);
+  }
+
+  .file-tree__icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .file-tree__icon--folder {
+    @apply text-primary;
+  }
+
+  .file-tree__icon--file {
+    @apply text-foreground/45;
+  }
+
+  /* Show the "open" folder icon only when the <details> is expanded. */
+  .file-tree__icon--open {
+    display: none;
+  }
+
+  .file-tree__folder[open] > summary .file-tree__icon--closed {
+    display: none;
+  }
+
+  .file-tree__folder[open] > summary .file-tree__icon--open {
+    display: inline-block;
+  }
+
+  .file-tree__name {
+    @apply text-foreground/85;
+  }
+
+  .file-tree__comment {
+    @apply text-foreground/40;
+    margin-left: 4px;
+    font-weight: 400;
+  }
+</style>

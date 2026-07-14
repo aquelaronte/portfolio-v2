@@ -33,6 +33,14 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+    // Mermaid is large and only ever loaded via dynamic import(). If Vite discovers
+    // it late (via that dynamic import) it re-optimizes mid-session and trips over
+    // itself ("The file does not exist ... in the optimize deps directory"), and in
+    // dev its CommonJS deps (d3, dagre, ...) fail to load as raw ESM, so the diagram
+    // never renders. Pre-bundling it up front fixes both — dev renders like prod.
+    optimizeDeps: {
+      include: ["mermaid"],
+    },
   },
 
   fonts: [
@@ -46,7 +54,7 @@ export default defineConfig({
       provider: fontProviders.google(),
       name: "Geist Mono",
       cssVariable: "--font-geist-mono",
-      weights: ["400", "600"]
+      weights: ["400", "600"],
     },
     {
       provider: fontProviders.google(),
@@ -56,6 +64,6 @@ export default defineConfig({
   ],
 
   adapter: cloudflare({
-    prerenderEnvironment: 'node'
+    prerenderEnvironment: "node",
   }),
 });

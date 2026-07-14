@@ -1,0 +1,207 @@
+---
+/**
+ * Recursive tree used by <FileExplorer>. Mirrors <FileTree> visually, but file
+ * nodes are rendered as <button>s that select which code panel is shown.
+ *
+ * A node is a folder when it has `children` or its `name` ends with "/".
+ * File nodes need a `path` — it links the button to its code panel/slot.
+ */
+import { Icon } from "astro-icon/components";
+import type { FileExplorerNode } from "./file-explorer.astro";
+
+interface Props {
+  tree: FileExplorerNode[];
+  /** Path of the file selected on load (gets `data-active`). */
+  active?: string;
+  /** Internal: true for nested lists (adds indent + guide line). */
+  branch?: boolean;
+}
+
+const { tree, active, branch = false } = Astro.props;
+
+const isFolder = (node: FileExplorerNode) =>
+  Boolean(node.children?.length) || node.name.endsWith("/");
+---
+
+<ul
+  class:list={["file-explorer__list", branch && "file-explorer__branch"]}
+  role={branch ? undefined : "tree"}
+>
+  {
+    tree.map((node) =>
+      isFolder(node) ? (
+        <li class="file-explorer__item" role="treeitem">
+          <details class="file-explorer__folder" open={node.open !== false}>
+            <summary class="file-explorer__row file-explorer__row--folder">
+              <Icon
+                name="lucide:chevron-right"
+                class="file-explorer__chevron"
+                aria-hidden="true"
+              />
+              <Icon
+                name="lucide:folder"
+                class="file-explorer__icon file-explorer__icon--folder file-explorer__icon--closed"
+                aria-hidden="true"
+              />
+              <Icon
+                name="lucide:folder-open"
+                class="file-explorer__icon file-explorer__icon--folder file-explorer__icon--open"
+                aria-hidden="true"
+              />
+              <span class="file-explorer__name">{node.name}</span>
+              {node.comment && (
+                <span class="file-explorer__comment"># {node.comment}</span>
+              )}
+            </summary>
+            {node.children?.length ? (
+              <Astro.self tree={node.children} active={active} branch />
+            ) : null}
+          </details>
+        </li>
+      ) : (
+        <li class="file-explorer__item" role="treeitem">
+          <button
+            type="button"
+            class="file-explorer__row file-explorer__row--file"
+            data-file-open={node.path}
+            data-active={node.path && node.path === active ? "" : undefined}
+            aria-pressed={node.path === active ? "true" : "false"}
+          >
+            <span class="file-explorer__chevron file-explorer__chevron--spacer" />
+            <Icon
+              name="lucide:file"
+              class="file-explorer__icon file-explorer__icon--file"
+              aria-hidden="true"
+            />
+            <span class="file-explorer__name">{node.name}</span>
+            {node.comment && (
+              <span class="file-explorer__comment"># {node.comment}</span>
+            )}
+          </button>
+        </li>
+      ),
+    )
+  }
+</ul>
+
+<style>
+  @reference "../../../styles/global.css";
+
+  /* Reset article-content's global list styles (bullets, indents, spacing). */
+  .file-explorer__list {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Nested lists: indent + a vertical guide line. */
+  .file-explorer__branch {
+    margin-left: 8px !important;
+    padding-left: 14px !important;
+    border-left: 1px solid;
+    @apply border-foreground/10;
+  }
+
+  .file-explorer__item {
+    margin: 0 !important;
+    padding: 0 !important;
+    position: static;
+  }
+
+  /* Kill the global `ul > li::before { content: "-" }` dash. */
+  .file-explorer__item::before {
+    content: none !important;
+  }
+
+  .file-explorer__row {
+    @apply text-foreground/70;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .file-explorer__row--folder {
+    @apply text-foreground/85 hover:bg-foreground/5 cursor-pointer;
+    font-weight: 600;
+    list-style: none;
+    transition: background-color 0.15s;
+  }
+
+  .file-explorer__row--folder::-webkit-details-marker {
+    display: none;
+  }
+
+  /* File rows are buttons — strip native button chrome, keep them full width. */
+  .file-explorer__row--file {
+    @apply hover:bg-foreground/5 cursor-pointer;
+    width: 100%;
+    background: none;
+    border: none;
+    font: inherit;
+    text-align: left;
+    transition: background-color 0.15s;
+  }
+
+  .file-explorer__row--file[data-active] {
+    @apply bg-primary/10 text-foreground;
+  }
+
+  .file-explorer__row--file[data-active] .file-explorer__icon--file {
+    @apply text-primary;
+  }
+
+  .file-explorer__chevron {
+    @apply text-foreground/40;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+
+  .file-explorer__chevron--spacer {
+    visibility: hidden;
+  }
+
+  .file-explorer__folder[open] > summary .file-explorer__chevron {
+    transform: rotate(90deg);
+  }
+
+  .file-explorer__icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .file-explorer__icon--folder {
+    @apply text-primary;
+  }
+
+  .file-explorer__icon--file {
+    @apply text-foreground/45;
+  }
+
+  .file-explorer__icon--open {
+    display: none;
+  }
+
+  .file-explorer__folder[open] > summary .file-explorer__icon--closed {
+    display: none;
+  }
+
+  .file-explorer__folder[open] > summary .file-explorer__icon--open {
+    display: inline-block;
+  }
+
+  .file-explorer__name {
+    @apply text-foreground/85;
+  }
+
+  .file-explorer__comment {
+    @apply text-foreground/40;
+    margin-left: 4px;
+    font-weight: 400;
+  }
+</style>

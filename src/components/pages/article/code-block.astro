@@ -66,53 +66,66 @@ const isMermaid = language.toLowerCase() === "mermaid";
       </div>
 
       <div class="mermaid-controls" hidden aria-hidden="true">
-        <button type="button" class="mermaid-ctrl" data-zoom-out aria-label="Alejar">
+        <button
+          type="button"
+          class="mermaid-ctrl"
+          data-zoom-out
+          aria-label="Alejar"
+        >
           <Icon name="lucide:minus" />
         </button>
-        <button type="button" class="mermaid-ctrl" data-zoom-reset aria-label="Ajustar">
+        <button
+          type="button"
+          class="mermaid-ctrl"
+          data-zoom-reset
+          aria-label="Ajustar"
+        >
           <Icon name="lucide:maximize" />
         </button>
-        <button type="button" class="mermaid-ctrl" data-zoom-in aria-label="Acercar">
+        <button
+          type="button"
+          class="mermaid-ctrl"
+          data-zoom-in
+          aria-label="Acercar"
+        >
           <Icon name="lucide:plus" />
         </button>
       </div>
 
       <noscript>
-        <pre
-          class={className}
-          style={style}
-          data-language={language}
-          {...rest}
-        >
-          <slot />
-        </pre>
+        <pre class={className} style={style} data-language={language} {...rest}><slot /></pre>
       </noscript>
     </figure>
   ) : (
     <figure class="code-block" data-language={language}>
-  <figcaption class="code-block__bar">
-    <span class="code-block__lang">{label}</span>
+      <figcaption class="code-block__bar">
+        <span class="code-block__lang">{label}</span>
 
-    <button
-      type="button"
-      class="code-block__copy"
-      data-copy
-      aria-label="Copiar código"
-    >
-      <Icon name="lucide:copy" class="code-block__icon code-block__icon--copy" />
-      <Icon
-        name="lucide:check"
-        class="code-block__icon code-block__icon--check"
-      />
-      <span class="code-block__copy-text code-block__copy-text--idle"
-        >Copiar</span
-      >
-      <span class="code-block__copy-text code-block__copy-text--done"
-        >Copiado</span
-      >
-    </button>
-  </figcaption>
+        <button
+          type="button"
+          class="code-block__copy"
+          data-copy
+          aria-label="Copiar código"
+        >
+          <Icon
+            name="lucide:copy"
+            class="code-block__icon code-block__icon--copy"
+          />
+          <Icon
+            name="lucide:check"
+            class="code-block__icon code-block__icon--check"
+          />
+          <span class="code-block__copy-text code-block__copy-text--idle">
+            Copiar
+          </span>
+          <span class="code-block__copy-text code-block__copy-text--done">
+            Copiado
+          </span>
+        </button>
+      </figcaption>
 
+      {/* No whitespace/newlines around <slot />: <pre> preserves it and it
+          would indent the first rendered line. */}
       <pre class={className} style={style} data-language={language} {...rest}><slot /></pre>
     </figure>
   )
@@ -134,10 +147,7 @@ const isMermaid = language.toLowerCase() === "mermaid";
           try {
             await navigator.clipboard.writeText(code.textContent ?? "");
             block.setAttribute("data-copied", "true");
-            window.setTimeout(
-              () => block.removeAttribute("data-copied"),
-              1600,
-            );
+            window.setTimeout(() => block.removeAttribute("data-copied"), 1600);
           } catch {
             /* clipboard unavailable — ignore */
           }
@@ -207,8 +217,10 @@ const isMermaid = language.toLowerCase() === "mermaid";
     if (!viewport || !canvas || !svg) return;
 
     // Let CSS control the box; strip mermaid's inline sizing so we can scale freely.
-    const natW = svg.viewBox?.baseVal?.width || svg.getBoundingClientRect().width;
-    const natH = svg.viewBox?.baseVal?.height || svg.getBoundingClientRect().height;
+    const natW =
+      svg.viewBox?.baseVal?.width || svg.getBoundingClientRect().width;
+    const natH =
+      svg.viewBox?.baseVal?.height || svg.getBoundingClientRect().height;
     svg.removeAttribute("width");
     svg.removeAttribute("height");
     svg.style.width = natW + "px";
@@ -289,12 +301,10 @@ const isMermaid = language.toLowerCase() === "mermaid";
       cx: viewport.clientWidth / 2,
       cy: viewport.clientHeight / 2,
     });
-    controls
-      ?.querySelector("[data-zoom-in]")
-      ?.addEventListener("click", () => {
-        const { cx, cy } = center();
-        zoomAt(1.25, cx, cy);
-      });
+    controls?.querySelector("[data-zoom-in]")?.addEventListener("click", () => {
+      const { cx, cy } = center();
+      zoomAt(1.25, cx, cy);
+    });
     controls
       ?.querySelector("[data-zoom-out]")
       ?.addEventListener("click", () => {
@@ -317,9 +327,7 @@ const isMermaid = language.toLowerCase() === "mermaid";
 
     for (const block of blocks) {
       if (block.dataset.rendered === "true") continue;
-      const source = block
-        .querySelector(".mermaid-src")
-        ?.textContent?.trim();
+      const source = block.querySelector(".mermaid-src")?.textContent?.trim();
       const canvas = block.querySelector<HTMLElement>(".mermaid-canvas");
       if (!source || !canvas) continue;
 

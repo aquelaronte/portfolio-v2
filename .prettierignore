@@ -8,3 +8,7 @@ public
 pnpm-workspace.yaml
 pnpm-lock.yaml
 package.json
+
+# Whitespace inside <pre> is significant: prettier reformats <pre><slot /></pre>
+# onto separate lines, which indents the first rendered code line. Keep as-is.
+src/components/pages/article/code-block.astro

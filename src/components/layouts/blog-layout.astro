@@ -4,6 +4,43 @@ import TerminalLine from "../atoms/terminal-line.astro";
 import TerminalCursor from "../atoms/terminal-cursor.astro";
 ---
 
+{
+  /* Thin, consistent scrollbars across every scrollable element on blog pages.
+    `:global()` makes these rules unscoped, but they only ship where this layout
+    is used (blog/*), so the rest of the site is unaffected. Mirrors the style
+    originally defined for the article index. */
+}
+<style is:global>
+  @reference "../../styles/global.css";
+
+  .blog-scope :where(*) {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(
+        in oklab,
+        var(--color-foreground) 18%,
+        transparent
+      )
+      transparent;
+  }
+
+  .blog-scope :where(*)::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .blog-scope :where(*)::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .blog-scope :where(*)::-webkit-scrollbar-thumb {
+    @apply bg-foreground/15 rounded-full;
+  }
+
+  .blog-scope :where(*)::-webkit-scrollbar-thumb:hover {
+    @apply bg-foreground/25;
+  }
+</style>
+
 <video
   class="fixed inset-0 -z-20 h-full w-full object-cover"
   src={bgVideo}
@@ -44,6 +81,8 @@ import TerminalCursor from "../atoms/terminal-cursor.astro";
   </div>
 </header>
 
-<main class="relative mx-auto max-w-[100vw] px-5 pb-30 font-mono sm:px-8">
+<main
+  class="blog-scope relative mx-auto max-w-[100vw] px-5 pb-30 font-mono sm:px-8"
+>
   <slot />
 </main>

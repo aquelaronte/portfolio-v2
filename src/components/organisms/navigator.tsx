@@ -91,13 +91,7 @@ const projects: ProjectData[] = [
           </>
         ),
       },
-      {
-        type: "p",
-        content:
-          "Mira por qué escogí el stack y la arquitectura de software en el artículo de mi blog.",
-      },
     ],
-    article: "#",
   },
   {
     slug: "dayvent",
@@ -492,7 +486,7 @@ function ProjectDetail({
             className="h-56 w-full object-cover object-center sm:h-72"
           />
 
-            {onBack && (
+          {onBack && (
             <button
               type="button"
               onClick={onBack}
