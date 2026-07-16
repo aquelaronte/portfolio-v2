@@ -1,0 +1,440 @@
+---
+import { getArticleLang, type Article } from "@/lib/infrastructure/articles/fetch";
+import { getLang, useTranslations } from "@/lib/i18n/ui";
+
+interface Props {
+  article: Article;
+}
+
+const { article } = Astro.props;
+const t = useTranslations(getLang(getArticleLang(article)));
+
+// APA 7th author + date, derived from the site owner and the article date.
+// Author is the site owner (this portfolio has a single author).
+const AUTHOR_FULL = "Brahian Arias";
+const parts = AUTHOR_FULL.trim().split(/\s+/);
+const apaLast = parts[parts.length - 1];
+const apaInitials = parts
+  .slice(0, -1)
+  .map((p) => `${p[0].toUpperCase()}.`)
+  .join(" ");
+const apaAuthor = apaInitials ? `${apaLast}, ${apaInitials}` : apaLast; // "Arias, B."
+
+const date = article.data.date;
+const year = String(date.getFullYear());
+// APA date: "Year, Month Day" — month names are given in English per APA style.
+const apaDate = `${year}, ${new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+}).format(date)}`;
+---
+
+<!-- Floating selection menu (hidden until text is selected inside the article) -->
+<div id="cite-menu" class="cite-menu" role="menu" hidden>
+  <button type="button" class="cite-menu__btn" data-cite-action="cite">
+    <svg
+      class="cite-menu__icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 21c3 0 7-1 7-8V5H3v8h4"></path>
+      <path d="M14 21c3 0 7-1 7-8V5h-7v8h4"></path>
+    </svg>
+    <span data-label>{t("cite.cite")}</span>
+  </button>
+  <span class="cite-menu__sep" aria-hidden="true"></span>
+  <button type="button" class="cite-menu__btn" data-cite-action="copy">
+    <svg
+      class="cite-menu__icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>
+    <span data-label data-copy-label={t("cite.copy")} data-copied-label={t("cite.copied")}
+      >{t("cite.copy")}</span
+    >
+  </button>
+</div>
+
+<!-- Citation dialog -->
+<dialog
+  id="cite-dialog"
+  class="cite-dialog"
+  data-apa-author={apaAuthor}
+  data-apa-last={apaLast}
+  data-apa-date={apaDate}
+  data-year={year}
+  data-title={article.data.title}
+  data-site={AUTHOR_FULL}
+>
+  <div class="cite-dialog__head">
+    <h2 class="cite-dialog__title">{t("cite.dialog.title")}</h2>
+    <button
+      type="button"
+      class="cite-dialog__close"
+      data-cite-action="close-dialog"
+      aria-label={t("cite.dialog.close")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M18 6 6 18M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div class="cite-dialog__field">
+    <span class="cite-dialog__label">{t("cite.dialog.intext")}</span>
+    <div class="cite-dialog__row">
+      <code class="cite-dialog__value" data-cite-field="intext"></code>
+      <button
+        type="button"
+        class="cite-dialog__copy"
+        data-cite-action="copy-field"
+        data-copy-label={t("cite.copy")}
+        data-copied-label={t("cite.copied")}>{t("cite.copy")}</button
+      >
+    </div>
+  </div>
+
+  <div class="cite-dialog__field">
+    <span class="cite-dialog__label">{t("cite.dialog.reference")}</span>
+    <div class="cite-dialog__row">
+      <code class="cite-dialog__value" data-cite-field="reference"></code>
+      <button
+        type="button"
+        class="cite-dialog__copy"
+        data-cite-action="copy-field"
+        data-copy-label={t("cite.copy")}
+        data-copied-label={t("cite.copied")}>{t("cite.copy")}</button
+      >
+    </div>
+  </div>
+</dialog>
+
+<script>
+  // Text-selection citation helper. All wiring is delegated off `document`, so
+  // the single module-level init survives ClientRouter navigations without
+  // leaking listeners (the menu/dialog DOM is re-created per page and looked up
+  // live at event time).
+  let selectedText = "";
+
+  const menu = () => document.getElementById("cite-menu");
+  const dialog = () =>
+    document.getElementById("cite-dialog") as HTMLDialogElement | null;
+  const articleRoot = () => document.querySelector(".article-content");
+
+  function activeSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
+    const text = sel.toString().trim();
+    if (!text) return null;
+    const range = sel.getRangeAt(0);
+    const root = articleRoot();
+    if (!root || !root.contains(range.commonAncestorContainer)) return null;
+    return { text, rect: range.getBoundingClientRect() };
+  }
+
+  function hideMenu() {
+    const el = menu();
+    if (el) el.hidden = true;
+  }
+
+  function showMenu() {
+    const el = menu();
+    const info = activeSelection();
+    if (!el || !info) {
+      hideMenu();
+      return;
+    }
+    selectedText = info.text;
+    el.hidden = false;
+
+    const { rect } = info;
+    const mw = el.offsetWidth;
+    const mh = el.offsetHeight;
+    let left = rect.left + rect.width / 2 - mw / 2;
+    let top = rect.top - mh - 8;
+    left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
+    if (top < 8) top = rect.bottom + 8; // no room above → flip below
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+  }
+
+  async function flashCopy(text: string, btn: HTMLElement) {
+    const label =
+      (btn.matches("[data-label]")
+        ? btn
+        : btn.querySelector<HTMLElement>("[data-label]")) ?? btn;
+    const copied = btn.dataset.copiedLabel ?? label.dataset.copiedLabel;
+    const idle = btn.dataset.copyLabel ?? label.dataset.copyLabel ?? label.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Clipboard blocked (e.g. insecure context) — bail quietly.
+      return;
+    }
+    if (copied) {
+      label.textContent = copied;
+      window.setTimeout(() => {
+        label.textContent = idle;
+      }, 1400);
+    }
+  }
+
+  // Canonical article URL (no hash/query).
+  const canonicalUrl = () => location.origin + location.pathname;
+
+  // APA 7th reference, assembled from the data-* attributes on the dialog element
+  // (present on every article page, whether or not the dialog is open).
+  function buildReference() {
+    const d = dialog()?.dataset;
+    if (!d) return "";
+    return `${d.apaAuthor} (${d.apaDate}). ${d.title}. ${d.site}. ${canonicalUrl()}`;
+  }
+
+  function openDialog() {
+    const dlg = dialog();
+    if (!dlg) return;
+    const d = dlg.dataset;
+    // Direct-quote in-text citation: the selected passage in quotes, then (Author, Year).
+    const quote = selectedText.replace(/\s+/g, " ").trim();
+    const intext = quote
+      ? `"${quote}" (${d.apaLast}, ${d.year})`
+      : `(${d.apaLast}, ${d.year})`;
+    const reference = buildReference();
+
+    const intextEl = dlg.querySelector<HTMLElement>('[data-cite-field="intext"]');
+    const refEl = dlg.querySelector<HTMLElement>('[data-cite-field="reference"]');
+    if (intextEl) intextEl.textContent = intext;
+    if (refEl) refEl.textContent = reference;
+
+    dlg.showModal();
+  }
+
+  // Finalize selection on pointer/keyboard release, then (maybe) show the menu.
+  document.addEventListener("mouseup", () => window.setTimeout(showMenu, 0));
+  document.addEventListener("touchend", () => window.setTimeout(showMenu, 0));
+
+  // Collapse → hide the menu.
+  document.addEventListener("selectionchange", () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) hideMenu();
+  });
+
+  // Keep the selection alive when pressing a menu button; hide when clicking away.
+  document.addEventListener("mousedown", (e) => {
+    const target = e.target as Node;
+    if (menu()?.contains(target)) {
+      e.preventDefault();
+      return;
+    }
+    if (!dialog()?.contains(target)) hideMenu();
+  });
+
+  document.addEventListener("click", (e) => {
+    const el = (e.target as Element)?.closest?.<HTMLElement>("[data-cite-action]");
+    if (!el) {
+      // Click on the dialog backdrop (the <dialog> element itself) closes it.
+      const dlg = dialog();
+      if (dlg?.open && e.target === dlg) dlg.close();
+      return;
+    }
+    const action = el.dataset.citeAction;
+    if (action === "copy") {
+      flashCopy(selectedText, el);
+    } else if (action === "cite") {
+      openDialog();
+      hideMenu();
+    } else if (action === "copy-field") {
+      const value =
+        el.parentElement?.querySelector<HTMLElement>("[data-cite-field]")
+          ?.textContent ?? "";
+      flashCopy(value, el);
+    } else if (action === "copy-reference") {
+      flashCopy(buildReference(), el);
+    } else if (action === "share") {
+      flashCopy(canonicalUrl(), el);
+    } else if (action === "close-dialog") {
+      dialog()?.close();
+    }
+  });
+
+  window.addEventListener("scroll", hideMenu, { passive: true });
+</script>
+
+<style>
+  @reference "../../../styles/global.css";
+
+  .cite-menu {
+    @apply border-foreground/10 bg-background/85 font-mono;
+    position: fixed;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-width: 1px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .cite-menu__btn {
+    @apply text-foreground/70 hover:text-foreground hover:bg-foreground/10 cursor-pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    background: none;
+    border: none;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
+  }
+
+  .cite-menu__icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .cite-menu__sep {
+    @apply bg-foreground/10;
+    width: 1px;
+    align-self: stretch;
+    margin: 4px 0;
+  }
+
+  /* --- Dialog --- */
+  .cite-dialog {
+    @apply border-foreground/10 bg-background text-foreground font-mono;
+    width: min(560px, calc(100vw - 32px));
+    margin: auto; /* center in the viewport (both axes) for a modal dialog */
+    padding: 0;
+    border-width: 1px;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
+  }
+
+  .cite-dialog::backdrop {
+    background: rgb(0 0 0 / 0.5);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  .cite-dialog[open] {
+    animation: cite-in 0.16s ease-out;
+  }
+
+  @keyframes cite-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  .cite-dialog__head {
+    @apply border-b-foreground/10 border-b;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+  }
+
+  .cite-dialog__title {
+    @apply text-foreground font-sans font-semibold;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+
+  .cite-dialog__close {
+    @apply text-foreground/45 hover:text-foreground hover:bg-foreground/10 cursor-pointer;
+    display: inline-flex;
+    padding: 5px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
+  }
+
+  .cite-dialog__close svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .cite-dialog__field {
+    padding: 16px 20px;
+  }
+
+  .cite-dialog__field + .cite-dialog__field {
+    @apply border-t-foreground/10 border-t;
+  }
+
+  .cite-dialog__label {
+    @apply text-foreground/45;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .cite-dialog__row {
+    @apply border-foreground/10 bg-foreground/5;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-width: 1px;
+    border-radius: 8px;
+  }
+
+  .cite-dialog__value {
+    @apply text-foreground/80 font-mono;
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.6;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  .cite-dialog__copy {
+    @apply text-primary hover:bg-primary/10 cursor-pointer;
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color 0.15s;
+  }
+</style>

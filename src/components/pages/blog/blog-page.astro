@@ -3,10 +3,22 @@ import BlogLayout from "@/components/layouts/blog-layout.astro";
 import BlogFooter from "./blog-footer.astro";
 import Hero from "./hero.astro";
 import Showcase from "./showcase.astro";
+import MainLayout from "@/components/layouts/main-layout.astro";
+import { getLang, useTranslations } from "@/lib/i18n/ui";
+
+const t = useTranslations(getLang(Astro.currentLocale));
 ---
 
-<BlogLayout>
-  <Hero />
-  <Showcase />
-  <BlogFooter />
-</BlogLayout>
+<MainLayout
+  title={t("blog.seo.title")}
+  description={t("blog.seo.description")}
+  transition:name="root-layout"
+  transition:animate={"fade"}
+  clientRouter
+>
+  <BlogLayout>
+    <Hero />
+    <Showcase />
+    <BlogFooter />
+  </BlogLayout>
+</MainLayout>

@@ -1,17 +1,5 @@
 ---
-import MainLayout from "@/components/layouts/main-layout.astro";
 import BlogPage from "@/components/pages/blog/blog-page.astro";
-import { getLang, useTranslations } from "@/lib/i18n/ui";
-
-const t = useTranslations(getLang(Astro.currentLocale));
 ---
 
-<MainLayout
-  title={t("blog.seo.title")}
-  description={t("blog.seo.description")}
-  transition:name="root-layout"
-  transition:animate={"fade"}
-  clientRouter
->
-  <BlogPage />
-</MainLayout>
+<BlogPage />

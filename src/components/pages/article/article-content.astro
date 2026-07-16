@@ -3,6 +3,7 @@ import Badge from "@/components/atoms/badge.astro";
 import CodeBlock from "@/components/pages/article/code-block.astro";
 import ArticleIndex from "@/components/pages/article/article-index.astro";
 import { formatDate } from "@/lib/helpers/format-date";
+import { getLang, useTranslations } from "@/lib/i18n/ui";
 import {
   getArticleLang,
   type Article,
@@ -20,7 +21,9 @@ interface Props {
 const { article, headings } = Astro.props;
 const { Content } = await render(article);
 
-const backHref = getRelativeLocaleUrl(getArticleLang(article), "blog");
+const lang = getArticleLang(article);
+const t = useTranslations(getLang(lang));
+const backHref = getRelativeLocaleUrl(lang, "blog");
 ---
 
 <article>
@@ -65,7 +68,7 @@ const backHref = getRelativeLocaleUrl(getArticleLang(article), "blog");
 
   <!-- metadata -->
   <div
-    class="text-foreground/80 border-b-foreground/10 mb-9 flex items-center gap-4 border-b pb-6.5 text-xs"
+    class="text-foreground/80 border-b-foreground/10 mb-9 flex flex-wrap items-center gap-x-4 gap-y-3 border-b pb-6.5 text-xs"
     transition:name={`article-meta-${article.id}`}
   >
     <!-- Date -->
@@ -75,6 +78,54 @@ const backHref = getRelativeLocaleUrl(getArticleLang(article), "blog");
 
     <!-- Estimated reading time -->
     <span>{article.data.estimatedReadingTime} min</span>
+
+    <!-- Cite/share actions (wired up by citation-menu.astro) -->
+    <div class="article-actions ml-auto">
+      <button
+        type="button"
+        class="article-action"
+        data-cite-action="copy-reference"
+        data-copy-label={t("cite.dialog.copyReference")}
+        data-copied-label={t("cite.copied")}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span data-label>{t("cite.dialog.copyReference")}</span>
+      </button>
+      <button
+        type="button"
+        class="article-action"
+        data-cite-action="share"
+        data-copy-label={t("cite.dialog.share")}
+        data-copied-label={t("cite.copied")}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+          ></path>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+          ></path>
+        </svg>
+        <span data-label>{t("cite.dialog.share")}</span>
+      </button>
+    </div>
   </div>
 
   <!-- cover -->
@@ -95,6 +146,36 @@ const backHref = getRelativeLocaleUrl(getArticleLang(article), "blog");
 
 <style>
   @reference "../../../styles/global.css";
+
+  .article-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .article-action {
+    @apply border-foreground/10 text-foreground/60 hover:text-foreground hover:border-foreground/25 hover:bg-foreground/5 cursor-pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-width: 1px;
+    border-radius: 7px;
+    background: none;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    transition:
+      color 0.15s,
+      border-color 0.15s,
+      background-color 0.15s;
+  }
+
+  .article-action svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
 
   .article-content :global(*) {
     @apply text-foreground/70 text-base;

@@ -1,12 +1,13 @@
 ---
-import MainLayout from "@/components/layouts/main-layout.astro";
 import ArticlePage from "@/components/pages/article/article-page.astro";
 import { getArticleSlug } from "@/lib/infrastructure/articles/fetch";
 import type { GetStaticPaths } from "astro";
 import { getCollection } from "astro:content";
 
 export const getStaticPaths = (async () => {
-  const articles = await getCollection("blog", ({ id }) => id.startsWith("en/"));
+  const articles = await getCollection("blog", ({ id }) =>
+    id.startsWith("en/"),
+  );
 
   return articles.map((article) => ({
     params: { slug: getArticleSlug(article) },
@@ -17,12 +18,4 @@ export const getStaticPaths = (async () => {
 const { article } = Astro.props;
 ---
 
-<MainLayout
-  title={article.data.title}
-  description={article.data.description}
-  transition:name="root-layout"
-  transition:animate={"fade"}
-  clientRouter
->
-  <ArticlePage article={article} />
-</MainLayout>
+<ArticlePage article={article} />

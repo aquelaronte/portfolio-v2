@@ -4,7 +4,9 @@ import LayoutPicker from "./layout-picker.astro";
 import ArticleContent from "./article-content.astro";
 import type { Article } from "@/lib/infrastructure/articles/fetch";
 import ArticleIndex from "./article-index.astro";
+import CitationMenu from "./citation-menu.astro";
 import { render } from "astro:content";
+import MainLayout from "@/components/layouts/main-layout.astro";
 
 interface Props {
   article: Article;
@@ -14,15 +16,74 @@ const { article } = Astro.props;
 const { headings } = await render(article);
 ---
 
-<BlogLayout>
-  <LayoutPicker />
+<MainLayout
+  title={article.data.title}
+  description={article.data.description}
+  transition:name="root-layout"
+  transition:animate={"fade"}
+  clientRouter
+>
   <div
-    class="article-grid relative z-10 mx-auto grid max-w-295 grid-cols-1 items-start gap-10 px-5 pt-8 pb-24 sm:px-8 lg:grid-cols-[minmax(0px,1fr)_240px] lg:gap-14 lg:pt-13 lg:pb-35"
+    id="reading-progress"
+    class="bg-primary fixed inset-x-0 top-0 z-30 h-0.5 origin-left"
+    style="transform: scaleX(0)"
+    aria-hidden="true"
   >
-    <ArticleContent article={article} headings={headings} />
-    <ArticleIndex headings={headings} />
   </div>
-</BlogLayout>
+  <BlogLayout>
+    <LayoutPicker />
+    <div
+      class="article-grid relative z-10 mx-auto grid max-w-295 grid-cols-1 items-start gap-10 px-5 pt-8 pb-24 sm:px-8 lg:grid-cols-[minmax(0px,1fr)_240px] lg:gap-14 lg:pt-13 lg:pb-35"
+    >
+      <ArticleContent article={article} headings={headings} />
+      <ArticleIndex headings={headings} />
+    </div>
+    <CitationMenu article={article} />
+  </BlogLayout>
+</MainLayout>
+
+<script>
+  // Reading progress bar. Uses a single throttled scroll listener and drives a
+  // GPU-friendly `transform: scaleX()`. Re-inits on every ClientRouter
+  // navigation and clears the previous window listeners to avoid leaks.
+  let cleanup: (() => void) | undefined;
+
+  function initReadingProgress() {
+    cleanup?.();
+    cleanup = undefined;
+
+    const bar = document.getElementById("reading-progress");
+    if (!bar) return;
+
+    const root = document.documentElement;
+    let ticking = false;
+
+    const update = () => {
+      const max = root.scrollHeight - root.clientHeight;
+      const progress = max > 0 ? root.scrollTop / max : 0;
+      bar.style.transform = `scaleX(${progress})`;
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    update();
+
+    cleanup = () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }
+
+  document.addEventListener("astro:page-load", initReadingProgress);
+</script>
 
 <style>
   @reference "../../../styles/global.css";
