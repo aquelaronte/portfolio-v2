@@ -13,9 +13,28 @@ import mdx from "@astrojs/mdx";
 import { unified } from "@astrojs/markdown-remark";
 import rehypeExternalLinks from "rehype-external-links";
 
+import sitemap from "@astrojs/sitemap";
+
 // https://astro.build/config
 export default defineConfig({
-  integrations: [icon(), react(), mdx()],
+  // Canonical production origin. Required for absolute URLs in the sitemap,
+  // canonical links, Open Graph tags and JSON-LD — i.e. for the site to be
+  // properly crawlable/indexable.
+  site: "https://arias.systems",
+
+  integrations: [
+    icon(),
+    react(),
+    mdx(),
+    sitemap({
+      // Emit <xhtml:link rel="alternate" hreflang> entries so crawlers connect
+      // the ES (default, unprefixed) and EN (/en) versions of each page.
+      i18n: {
+        defaultLocale: "es",
+        locales: { es: "es", en: "en" },
+      },
+    }),
+  ],
 
   i18n: {
     locales: ["es", "en"],

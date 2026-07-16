@@ -19,6 +19,12 @@ const { headings } = await render(article);
 <MainLayout
   title={article.data.title}
   description={article.data.description}
+  ogType="article"
+  image={article.data.cover.url.src}
+  publishedTime={article.data.date.toISOString()}
+  modifiedTime={article.data.updated?.toISOString()}
+  tags={article.data.tags}
+  bilingual
   transition:name="root-layout"
   transition:animate={"fade"}
   clientRouter
