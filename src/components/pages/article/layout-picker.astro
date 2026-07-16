@@ -1,9 +1,17 @@
+---
+import { getLang, useTranslations } from "@/lib/i18n/ui";
+
+const t = useTranslations(getLang(Astro.currentLocale));
+---
+
 <div
   class="bg-background/80 border-foreground/10 fixed top-17.5 right-6.5 z-50 flex items-center gap-2 rounded-xl border px-2 py-1.5 text-xs"
 >
-  <span class="text-foreground/80 px-1">modo:</span>
-  <span class="button" data-mode-btn="regular" data-active="true">regular</span>
-  <span class="button" data-mode-btn="immersive">inmersivo</span>
+  <span class="text-foreground/80 px-1">{t("mode.label")}</span>
+  <span class="button" data-mode-btn="regular" data-active="true"
+    >{t("mode.regular")}</span
+  >
+  <span class="button" data-mode-btn="immersive">{t("mode.immersive")}</span>
 </div>
 
 <script>

@@ -3,10 +3,14 @@ import Badge from "@/components/atoms/badge.astro";
 import CodeBlock from "@/components/pages/article/code-block.astro";
 import ArticleIndex from "@/components/pages/article/article-index.astro";
 import { formatDate } from "@/lib/helpers/format-date";
-import type { Article } from "@/lib/infrastructure/articles/fetch";
+import {
+  getArticleLang,
+  type Article,
+} from "@/lib/infrastructure/articles/fetch";
 import type { MarkdownHeading } from "astro";
 import { Image } from "astro:assets";
 import { render } from "astro:content";
+import { getRelativeLocaleUrl } from "astro:i18n";
 
 interface Props {
   article: Article;
@@ -15,13 +19,15 @@ interface Props {
 
 const { article, headings } = Astro.props;
 const { Content } = await render(article);
+
+const backHref = getRelativeLocaleUrl(getArticleLang(article), "blog");
 ---
 
 <article>
   <div class="mb-5.5">
     <!-- Back button -->
     <a
-      href="/blog"
+      href={backHref}
       class="group hover:text-primary inline-block w-fit text-sm transition-colors"
     >
       <span

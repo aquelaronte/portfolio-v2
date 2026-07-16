@@ -1,7 +1,30 @@
 ---
-import bgVideo from "@/assets/blog/background.webm";
 import TerminalLine from "../atoms/terminal-line.astro";
 import TerminalCursor from "../atoms/terminal-cursor.astro";
+import { getLang, useTranslations } from "@/lib/i18n/ui";
+import { getRelativeLocaleUrl } from "astro:i18n";
+
+const lang = getLang(Astro.currentLocale);
+const t = useTranslations(lang);
+
+// Locale-independent path (drop any leading /es|/en prefix) so the switch links
+// to the same page in the other language, e.g. /en/blog/slug <-> /blog/slug.
+const basePath =
+  Astro.url.pathname.replace(/^\/(es|en)(?=\/|$)/, "").replace(/^\//, "") ||
+  "blog";
+
+const localeLinks = [
+  {
+    code: "es" as const,
+    label: "ES",
+    href: getRelativeLocaleUrl("es", basePath),
+  },
+  {
+    code: "en" as const,
+    label: "EN",
+    href: getRelativeLocaleUrl("en", basePath),
+  },
+];
 ---
 
 {
@@ -39,6 +62,21 @@ import TerminalCursor from "../atoms/terminal-cursor.astro";
   .blog-scope :where(*)::-webkit-scrollbar-thumb:hover {
     @apply bg-foreground/25;
   }
+
+  /* Language switch (in the persisted header). Global so it ships reliably from
+     this layout; the active button is driven by the [data-active] attribute,
+     which the inline script keeps in sync on every client navigation. */
+  .lang-switch__link {
+    @apply text-foreground/60 rounded px-1.5 py-1 font-semibold transition-colors;
+  }
+
+  .lang-switch__link:hover {
+    @apply text-foreground;
+  }
+
+  .lang-switch__link[data-active="true"] {
+    @apply bg-foreground/10 text-foreground;
+  }
 </style>
 
 <div
@@ -72,12 +110,59 @@ import TerminalCursor from "../atoms/terminal-cursor.astro";
       </TerminalLine>
     </span>
   </div>
-  <div
-    class="bg-primary cursor-pointer rounded-md border px-2 py-1.5 text-xs text-black"
-  >
-    Sobre mi
+  <div class="flex items-center gap-3">
+    <nav
+      class="lang-switch border-foreground/10 flex items-center gap-0.5 rounded-md border p-0.5 text-xs"
+      aria-label="Language"
+    >
+      {
+        localeLinks.map((locale) => (
+          <a
+            href={locale.href}
+            data-locale-link={locale.code}
+            data-active={locale.code === lang}
+            class="lang-switch__link"
+          >
+            {locale.label}
+          </a>
+        ))
+      }
+    </nav>
+    <a href="/" target="_blank">
+      <div
+        class="bg-primary cursor-pointer rounded-md border px-2 py-1.5 text-xs text-black"
+      >
+        {t("header.about")}
+      </div>
+    </a>
   </div>
 </header>
+
+<script>
+  // The <header> uses `transition:persist`, so on client-side navigation it is
+  // carried over from the previous page: the language switch would keep a stale
+  // active state and stale hrefs (pointing at the previous page's counterpart).
+  // Re-derive both from the current URL on every page load.
+  function syncLangSwitch() {
+    const path = window.location.pathname;
+    const isEn = /^\/en(\/|$)/.test(path);
+    const base =
+      path
+        .replace(/^\/(es|en)(?=\/|$)/, "")
+        .replace(/^\/+/, "")
+        .replace(/\/+$/, "") || "blog";
+
+    document
+      .querySelectorAll<HTMLAnchorElement>("[data-locale-link]")
+      .forEach((link) => {
+        const code = link.dataset.localeLink;
+        link.setAttribute("href", code === "en" ? `/en/${base}/` : `/${base}/`);
+        link.dataset.active = String(code === (isEn ? "en" : "es"));
+      });
+  }
+
+  document.addEventListener("astro:page-load", syncLangSwitch);
+</script>
 
 <main
   class="blog-scope relative mx-auto max-w-[100vw] px-5 pb-30 font-mono sm:px-8"

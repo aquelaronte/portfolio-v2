@@ -6,7 +6,7 @@ import type { GetStaticPaths } from "astro";
 import { getCollection } from "astro:content";
 
 export const getStaticPaths = (async () => {
-  const articles = await getCollection("blog", ({ id }) => id.startsWith("es/"));
+  const articles = await getCollection("blog", ({ id }) => id.startsWith("en/"));
 
   return articles.map((article) => ({
     params: { slug: getArticleSlug(article) },

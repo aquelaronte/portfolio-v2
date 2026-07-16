@@ -1,8 +1,14 @@
 ---
 import Badge from "../atoms/badge.astro";
 import { formatDate } from "@/lib/helpers/format-date";
-import type { Article } from "@/lib/infrastructure/articles/fetch";
+import {
+  getArticleLang,
+  getArticleSlug,
+  type Article,
+} from "@/lib/infrastructure/articles/fetch";
+import { useTranslations } from "@/lib/i18n/ui";
 import { Image } from "astro:assets";
+import { getRelativeLocaleUrl } from "astro:i18n";
 
 interface Props {
   article: Article;
@@ -10,10 +16,14 @@ interface Props {
 }
 
 const { article, featured = false } = Astro.props;
+
+const lang = getArticleLang(article);
+const t = useTranslations(lang);
+const href = getRelativeLocaleUrl(lang, `blog/${getArticleSlug(article)}`);
 ---
 
 <a
-  href={`/blog/${article.id}`}
+  href={href}
   class:list={[
     "group border-foreground/10 bg-foreground/5 hover:border-primary/40 hover:shadow-primary/30 mb-6.5 grid cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-[0_0_30px_-5px]",
     featured ? "grid-cols-1 md:grid-cols-[1.05fr_1fr]" : "grid-cols-1",
@@ -71,7 +81,7 @@ const { article, featured = false } = Astro.props;
       <span class="flex-1"></span>
 
       <span class="text-primary flex items-center gap-1 group-hover:underline"
-        >leer <span aria-hidden="true">&rarr;</span></span
+        >{t("card.read")} <span aria-hidden="true">&rarr;</span></span
       >
     </div>
   </div>

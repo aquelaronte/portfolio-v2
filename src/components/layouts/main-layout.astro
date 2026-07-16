@@ -1,5 +1,6 @@
 ---
 import "@/styles/global.css";
+import { getLang } from "@/lib/i18n/ui";
 import { Font } from "astro:assets";
 import { ClientRouter } from "astro:transitions";
 
@@ -17,9 +18,11 @@ const {
   description,
   clientRouter = false,
 } = Astro.props;
+
+const lang = getLang(Astro.currentLocale);
 ---
 
-<html lang="es">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />

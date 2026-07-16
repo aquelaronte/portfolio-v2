@@ -1,6 +1,9 @@
 ---
 import type { MarkdownHeading } from "astro";
 import ArticleIndexItem from "./article-index-item.astro";
+import { getLang, useTranslations } from "@/lib/i18n/ui";
+
+const t = useTranslations(getLang(Astro.currentLocale));
 
 interface Props {
   headings: MarkdownHeading[];
@@ -37,7 +40,7 @@ const items = toc.map((heading) => {
     <nav class="article-index-inline">
       <div class="border-foreground/10 bg-foreground/5 rounded-xl border px-5 py-4.5">
         <div class="text-primary mb-3.5 text-xs tracking-widest">
-          &gt; índice
+          &gt; {t("index.title")}
         </div>
 
         <div class="index-inline-grid">
@@ -57,7 +60,7 @@ const items = toc.map((heading) => {
     <aside class="sticky top-30">
       <div class="border-foreground/10 bg-foreground/5 flex max-h-[calc(100vh-12rem)] flex-col rounded-xl border px-4.5 py-4">
         <div class="text-primary mb-3.5 shrink-0 text-xs tracking-widest">
-          &gt; índice
+          &gt; {t("index.title")}
         </div>
 
         <div class="index-scroll -mr-2 min-h-0 overflow-y-auto pr-2">

@@ -17,6 +17,15 @@ import rehypeExternalLinks from "rehype-external-links";
 export default defineConfig({
   integrations: [icon(), react(), mdx()],
 
+  i18n: {
+    locales: ["es", "en"],
+    defaultLocale: "es",
+    routing: {
+      // Spanish (default) stays at /blog; English lives at /en/blog.
+      prefixDefaultLocale: false,
+    },
+  },
+
   markdown: {
     processor: unified({
       rehypePlugins: [
@@ -33,13 +42,18 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
-    // Mermaid is large and only ever loaded via dynamic import(). If Vite discovers
-    // it late (via that dynamic import) it re-optimizes mid-session and trips over
-    // itself ("The file does not exist ... in the optimize deps directory"), and in
-    // dev its CommonJS deps (d3, dagre, ...) fail to load as raw ESM, so the diagram
-    // never renders. Pre-bundling it up front fixes both — dev renders like prod.
+    // Pre-bundle deps that Vite would otherwise discover *late* (on first render).
+    // A late discovery forces a mid-session re-optimize + SSR worker reload, which
+    // the Cloudflare workerd dev runner cannot survive — it then throws
+    // "module is not defined" from getComponentByRoute on every request until a
+    // full restart. Listing them here bundles them during the initial optimize pass
+    // so the worker never reloads.
+    //   - mermaid: also only ever loaded via dynamic import(); its CommonJS deps
+    //     (d3, dagre, ...) otherwise fail to load as raw ESM so diagrams never render.
+    //   - astro-icon/components: used by article/homepage components; its lazy
+    //     optimization is what triggers the workerd "module is not defined" crash.
     optimizeDeps: {
-      include: ["mermaid"],
+      include: ["mermaid", "astro-icon/components"],
     },
   },
 
