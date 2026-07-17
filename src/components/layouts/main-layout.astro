@@ -139,6 +139,81 @@ const breadcrumbLd = isArticle
       document.addEventListener("astro:after-swap", applyReadingMode);
     </script>
 
+    <!--
+      Language detection + localStorage persistence.
+      Runs synchronously before any content paints so the redirect (when needed)
+      happens with minimal flash. Only bilingual paths (blog/*) get redirected;
+      the homepage stays in its original language.
+    -->
+    <script is:inline>
+      (function () {
+        var KEY = "portfolio-lang";
+        var SUPPORTED = ["es", "en"];
+
+        function getSaved() {
+          try {
+            var v = localStorage.getItem(KEY);
+            if (v === "es" || v === "en") return v;
+          } catch (e) {}
+          return null;
+        }
+
+        function save(v) {
+          try {
+            localStorage.setItem(KEY, v);
+          } catch (e) {}
+        }
+
+        function getBrowser() {
+          var locales =
+            navigator.languages && navigator.languages.length
+              ? navigator.languages
+              : [navigator.language];
+          for (var i = 0; i < locales.length; i++) {
+            var code = locales[i].slice(0, 2);
+            if (SUPPORTED.indexOf(code) !== -1) return code;
+          }
+          return "es";
+        }
+
+        function isBilingual(path) {
+          return (
+            path === "/blog" ||
+            path.indexOf("/blog/") === 0 ||
+            path === "/en/blog" ||
+            path.indexOf("/en/blog/") === 0
+          );
+        }
+
+        function localizedUrl(target) {
+          var path = window.location.pathname;
+          var base = path
+            .replace(/^\/(es|en)(?=\/|$)/, "")
+            .replace(/^\/+/, "")
+            .replace(/\/+$/, "");
+          return target === "en" ? "/en/" + base : "/" + base;
+        }
+
+        function redirect(target) {
+          var url = localizedUrl(target);
+          if (window.location.pathname !== url)
+            window.location.replace(url);
+        }
+
+        var path = window.location.pathname;
+        var current = /^\/en(\/|$)/.test(path) ? "en" : "es";
+        var saved = getSaved();
+
+        if (saved) {
+          if (saved !== current && isBilingual(path)) redirect(saved);
+        } else {
+          var browser = getBrowser();
+          save(browser);
+          if (browser !== current && isBilingual(path)) redirect(browser);
+        }
+      })();
+    </script>
+
     <Font cssVariable="--font-geist" preload />
     <Font cssVariable="--font-geist-mono" preload />
     <Font cssVariable="--font-jacquard" preload />

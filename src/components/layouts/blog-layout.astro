@@ -139,6 +139,8 @@ const localeLinks = [
 </header>
 
 <script>
+  import { saveLang } from "@/lib/i18n/language-detect";
+
   // The <header> uses `transition:persist`, so on client-side navigation it is
   // carried over from the previous page: the language switch would keep a stale
   // active state and stale hrefs (pointing at the previous page's counterpart).
@@ -160,6 +162,15 @@ const localeLinks = [
         link.dataset.active = String(code === (isEn ? "en" : "es"));
       });
   }
+
+  // Persist the language choice whenever the user clicks a locale link so
+  // future visits land on their preferred language automatically.
+  document.addEventListener("click", (e) => {
+    const link = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-locale-link]",
+    );
+    if (link) saveLang(link.dataset.localeLink as "es" | "en");
+  });
 
   document.addEventListener("astro:page-load", syncLangSwitch);
 </script>
